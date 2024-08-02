@@ -33,7 +33,7 @@ tasks {
 dependencies {
     testImplementation(kotlin("test"))
     implementation("eu.vendeli:telegram-bot:6.2.0")
-//    ksp("eu.vendeli:ksp:6.2.0")
+    ksp("eu.vendeli:ksp:6.2.0")
     implementation("org.kodein.emoji:emoji-kt:2.0.1")
 }
 
