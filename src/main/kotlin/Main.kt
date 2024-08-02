@@ -1,5 +1,9 @@
 package com.mycompany
 
-fun main() {
-    println("Hello World!")
+import eu.vendeli.tgbot.TelegramBot
+
+suspend fun main() {
+    val bot = TelegramBot("7464291925:AAE9yVAOYb_m1WtrS6w1rfWNJdcut5B7n9I")
+
+    bot.handleUpdates()
 }
