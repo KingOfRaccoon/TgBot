@@ -1,11 +1,5 @@
-package com.mycompany
+package ru.kingofraccoons
 
-import com.mycompany.di.Modules.getGameMaster
-import com.mycompany.game.GameMaster
-import com.mycompany.game.GameMaster.Companion.startPower
-import com.mycompany.game.Status
-import com.mycompany.game.StatusName
-import com.mycompany.navigation.State
 import eu.vendeli.tgbot.TelegramBot
 import eu.vendeli.tgbot.annotations.CommandHandler
 import eu.vendeli.tgbot.annotations.CommonHandler
@@ -20,6 +14,12 @@ import org.kodein.emoji.Emoji
 import org.kodein.emoji.objects.tool.Shield
 import org.kodein.emoji.smileys_emotion.heart.RedHeart
 import org.kodein.emoji.travel_places.sky_weather.Lightning
+import ru.kingofraccoons.di.Modules.getGameMaster
+import ru.kingofraccoons.game.GameMaster
+import ru.kingofraccoons.game.GameMaster.Companion.startPower
+import ru.kingofraccoons.game.Status
+import ru.kingofraccoons.game.StatusName
+import ru.kingofraccoons.navigation.State
 
 class StartController {
     @CommandHandler([State.start])

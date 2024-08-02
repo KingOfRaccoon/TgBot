@@ -1,4 +1,4 @@
-package com.mycompany.game
+package ru.kingofraccoons.game
 
 enum class Status(
     val title: String,

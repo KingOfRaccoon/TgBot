@@ -1,7 +1,7 @@
-package com.mycompany.game
+package ru.kingofraccoons.game
 
-import com.mycompany.getMessageForIncreaseOrDecreaseButton
-import com.mycompany.navigation.State
+import ru.kingofraccoons.getMessageForIncreaseOrDecreaseButton
+import ru.kingofraccoons.navigation.State
 import eu.vendeli.tgbot.api.message.message
 import org.kodein.emoji.Emoji
 import org.kodein.emoji.objects.tool.Shield

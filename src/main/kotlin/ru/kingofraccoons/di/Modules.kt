@@ -1,6 +1,6 @@
-package com.mycompany.di
+package ru.kingofraccoons.di
 
-import com.mycompany.game.GameMaster
+import ru.kingofraccoons.game.GameMaster
 
 object Modules {
     private var gameMasters : MutableMap<Long, GameMaster> = mutableMapOf()

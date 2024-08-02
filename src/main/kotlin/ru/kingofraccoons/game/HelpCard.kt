@@ -1,4 +1,4 @@
-package com.mycompany.game
+package ru.kingofraccoons.game
 
 enum class HelpCard(val description: String, val cost: Int, val quantity: Int, var countMoves: Int, var cooldown: Int) {
     YourShow("ТШ ГУАП", 2, 0, 1, 0),

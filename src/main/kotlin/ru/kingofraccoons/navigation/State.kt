@@ -1,4 +1,4 @@
-package com.mycompany.navigation
+package ru.kingofraccoons.navigation
 
 object State {
     const val newRound = "Новый раунд"

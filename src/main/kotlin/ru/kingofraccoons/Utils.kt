@@ -1,8 +1,8 @@
-package com.mycompany
+package ru.kingofraccoons
 
-import com.mycompany.navigation.State
 import eu.vendeli.tgbot.TelegramBot
 import eu.vendeli.tgbot.types.User
+import ru.kingofraccoons.navigation.State
 
 fun getMessageItem(value: String) = when (value) {
     State.hp -> "с HP"

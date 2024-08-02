@@ -1,7 +1,7 @@
-package com.mycompany.game
+package ru.kingofraccoons.game
 
-import com.mycompany.di.Modules
-import com.mycompany.game.GameMaster.Companion.startShield
+import ru.kingofraccoons.di.Modules
+import ru.kingofraccoons.game.GameMaster.Companion.startShield
 
 data class Card(private val _hp: Int, var index: Int, val userId: Long, var shield: Int = startShield) {
     var canUseSkill = true
