@@ -9,6 +9,7 @@ object State {
     const val startRound = "Начать раунд"
     const val startGame = "Начать игру"
     const val inputHealthPoints = "inputHealthPoints"
+    const val inputSkillsPoints = "inputSkillsPoints"
     const val selectPerson = "selectPerson"
     const val hp = "HP"
     const val increaseHP = increase + hp

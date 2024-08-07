@@ -2,15 +2,31 @@ package ru.kingofraccoons.game
 
 import ru.kingofraccoons.di.Modules
 import ru.kingofraccoons.game.GameMaster.Companion.startShield
+import kotlin.math.min
 
 data class Card(private val _hp: Int, var index: Int, val userId: Long, var shield: Int = startShield) {
+    var costUltra = 0
     var canUseSkill = true
     var hp = _hp
         set(value) {
-            field = if (Modules.getUsedNineLife(userId))
-                (2..6).random()
-            else
-                value
+            field = min(
+                _hp, if (shield > 0 && (value - field) < 0) {
+                    if (shield > (field - value)) {
+                        shield -= (field - value)
+                        field
+                    } else {
+                        val temp = shield
+                        shield = 0
+                        ((field - value) - temp)
+                    }
+                } else {
+                    if (value <= 0 && Modules.getUsedNineLife(userId)) {
+                        statuses[Status.NineLife] = Status.NineLife.countRounds
+                        (2..6).random()
+                    } else
+                        value
+                }
+            )
         }
     var countSkill = 0
     val statuses = mutableMapOf<Status, Int>()
@@ -21,8 +37,8 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
     }
 
     fun executeStatus() {
-        statuses.forEach { (it, count) ->
-            when(it) {
+        statuses.forEach { (it, _) ->
+            when (it) {
                 Status.RedHeadGirlfriend -> hp += it.quantity
                 Status.NutsWithMilk -> hp += it.quantity
                 Status.Deadline -> hp += it.quantity
@@ -37,6 +53,7 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
                         canUseSkill = true
                     }
                 }
+
                 else -> {}
             }
             statuses[it]?.minus(1)?.let { value -> statuses[it] = value }

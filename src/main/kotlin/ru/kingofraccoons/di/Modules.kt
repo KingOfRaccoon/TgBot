@@ -16,7 +16,7 @@ object Modules {
     fun getUsedNineLife(userId: Long) : Boolean {
         if (!usedNineLife.containsKey(userId)) {
             usedNineLife[userId] = true
-            return false
+            return true
         }
 
         return usedNineLife[userId] ?: false

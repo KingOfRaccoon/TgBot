@@ -92,7 +92,7 @@ class GameMaster(private val userId: Long) {
             return 9
 
         return when (action) {
-            State.hp -> actionCard?.hp ?: 9
+            State.hp -> actionCard?.let { min(9, it.hp + it.shield) } ?: 9
             State.shield -> actionCard?.shield ?: startShield
             State.power -> power
             State.skill -> min(power, 7)
@@ -100,6 +100,8 @@ class GameMaster(private val userId: Long) {
             else -> power
         }
     }
+
+    fun getCanUltra() = actionCard?.let { it.costUltra <= it.countSkill } == true
 
     fun executeAction() {
         when (action) {
@@ -122,7 +124,7 @@ class GameMaster(private val userId: Long) {
             }
 
             State.ultra -> {
-                power -= firstQuantity
+                power -= actionCard?.costUltra ?: 0
                 actionCard?.countSkill = actionCard?.countSkill?.minus(secondQuantity) ?: 0
             }
 
@@ -188,6 +190,12 @@ class GameMaster(private val userId: Long) {
         }
     }
 
+    fun setSkillsPoints(skillPoints: List<Int>) {
+        cards.forEachIndexed { index, it ->
+            it.costUltra = skillPoints.getOrNull(index) ?: 0
+        }
+    }
+
     fun setDefaultValues() {
         cards.clear()
         power = startPower
@@ -225,12 +233,8 @@ class GameMaster(private val userId: Long) {
         message {
             bold { "Персонаж ${it.index}" } - ": ${it.hp} жизней${Emoji.RedHeart}\n" +
                     "Количество навыков: ${it.countSkill}\n" + "Щит${Emoji.Shield}: ${it.shield}\n" +
-                    "Статусы: " + (if (it.statuses.isNotEmpty()) "[\n${it.statuses.keys.filter { it.countRounds > 2 }.joinToString { "  " + it.title + " - " + it.description }}\n]" else "[]")
+                    "Статусы: " + (if (it.statuses.isNotEmpty()) "[\n${it.statuses.keys.joinToString { "  " + it.title + " - " + it.description }}\n]" else "[]")
         }
-    }
-
-    fun addStatusMessage(key: String, index: Int, value: String) {
-        statusMessage[key to index] = value
     }
 
     fun setStatus(status: Status) {
@@ -308,7 +312,7 @@ class GameMaster(private val userId: Long) {
 
     companion object {
         const val startPower = 8
-        const val startShield = 10
+        const val startShield = 0
         val allStudentDebts = arrayOf("Матан", "Английский язык", "История", "Философия", "Физика")
         val randomActions = arrayOf(
             "Прибавить 2hp", "Прибавить 3 энергии", "Прибавить 2 единицы щита", "+2 к следующей атаке персонажа"

@@ -52,6 +52,23 @@ class StartController {
         }
 
         getGameMaster(user.id).setHealthPoints(splitInput)
+        message { "Данные были введены успешно!" }.send(user, bot)
+        message { "Введите количество " - bold { "навыков для ульты каждого персонажа" } - " через пробел (пример: 10 10 10)" }
+            .replyKeyboardRemove()
+            .send(user, bot)
+        bot.navigate(user, State.inputSkillsPoints)
+    }
+
+    @InputHandler([State.inputSkillsPoints])
+    suspend fun inputSkillsPointsState(update: ProcessedUpdate, user: User, bot: TelegramBot) {
+        val splitInput = update.text.trim().split(" ").mapNotNull { it.toIntOrNull() }
+        if (splitInput.size != 3) {
+            message { "Что-то не так пошло с данными :(\nПопробуйте снова" }.send(user, bot)
+            bot.navigate(user, State.inputSkillsPoints)
+            return
+        }
+
+        getGameMaster(user.id).setSkillsPoints(splitInput)
         message { "Данные были введены успешно!" }.replyKeyboardMarkup {
             +State.startRound
             options {
@@ -67,7 +84,7 @@ class StartController {
     }
 
     @CommandHandler.CallbackQuery([State.status])
-    suspend fun selectStatusState(value: ProcessedUpdate, user: User, bot: TelegramBot) {
+    suspend fun selectStatusState(user: User, bot: TelegramBot) {
         message { "Выберите статус" }.inlineKeyboardMarkup {
             Status.entries.toList().filter { it.shown }.chunked(2).forEach { statusChunk ->
                 statusChunk.forEach {
@@ -133,7 +150,7 @@ class StartController {
         }.send(user, bot)
     }
 
-    @CommandHandler.CallbackQuery([State.power, State.shield])
+    @CommandHandler.CallbackQuery([State.power])
     suspend fun commandCharacteristicState(value: ProcessedUpdate, user: User, bot: TelegramBot) {
         val action = value.text
         getGameMaster(user.id).setAction(action)
@@ -145,7 +162,7 @@ class StartController {
         }
     }
 
-    @CommandHandler.CallbackQuery([State.hp, State.skill, State.ultra])
+    @CommandHandler.CallbackQuery([State.hp, State.skill, State.ultra, State.shield])
     suspend fun hpState(value: ProcessedUpdate, user: User, bot: TelegramBot) {
         val gameMaster = getGameMaster(user.id)
         val action = value.text
@@ -175,7 +192,10 @@ class StartController {
             if (gameMaster.perfectionismValue == 0)
                 message { "Проверки закончены, статус " - bold { "Перфекционизм" } - " снят" }.send(user, bot)
             else
-                message { "Проверка пройдена. Проверка прошла " - bold { gameMaster.perfectionismValue.toString() } - " раз" }.send(user, bot)
+                message { "Проверка пройдена. Проверка прошла " - bold { gameMaster.perfectionismValue.toString() } - " раз" }.send(
+                    user,
+                    bot
+                )
             message { "Выберите персонажа" }.replyKeyboardMarkup {
                 getGameMaster(user.id).getReplyButtonsInfo().forEach {
                     +it
@@ -221,6 +241,7 @@ class StartController {
 
     @CommandHandler.CallbackQuery([State.increasePower, State.decreasePower, State.increaseHP, State.decreaseHP, State.increaseShield, State.decreaseShield])
     suspend fun setQuantityInHpAndOtherState(value: ProcessedUpdate, user: User, bot: TelegramBot) {
+        println(value.text)
         getGameMaster(user.id).setIncrease(if (value.text.contains(State.decrease)) -1 else 1)
         message {
             "Укажите количество ${getMessageForQuantity(value.text.split("_").lastOrNull().orEmpty())}"
@@ -310,7 +331,7 @@ class StartController {
                                         gameMaster.getDistinctDebts().joinToString { it }
                                     }
                                 else
-                                    "У вас" - bold { "пока что" } - "нет долгов"
+                                    "У вас " - bold { "пока что" } - " нет долгов"
                             }.replyKeyboardMarkup {
                                 if (gameMaster.power > 0)
                                     +"Получить долг"
@@ -395,7 +416,7 @@ class StartController {
         message { "Ваша мелодия: \n" + gameMaster.notes.joinToString(" ") { it } }.send(user, bot)
         message {
             bold { "${gameMaster.getDistinctNotesCount()} " } - "одинаковых нот\n" -
-                    "Противнику надо снести" - bold { "${gameMaster.getDistinctNotesCount()} HP" }
+                    "Противнику надо снести " - bold { "${gameMaster.getDistinctNotesCount()} HP" }
         }.send(user, bot)
 
         message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
@@ -407,7 +428,7 @@ class StartController {
         val gameMaster = getGameMaster(user.id)
         gameMaster.setNotes(true)
         message { "Ваша мелодия: \n" + gameMaster.notes.joinToString(" ") { it } }.send(user, bot)
-        message { "Противнику надо снести" - bold { "5 HP" } }.send(user, bot)
+        message { "Противнику надо снести " - bold { "5 HP" } }.send(user, bot)
 
         message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
         startRoundMessages(user, bot)
@@ -423,7 +444,7 @@ class StartController {
                     gameMaster.getDistinctDebts().joinToString { it }
                 }
             else
-                "У вас" - bold { "пока что" } - "нет долгов"
+                "У вас " - bold { "пока что" } - " нет долгов"
         }.replyKeyboardRemove().send(user, bot)
         if (gameMaster.debts.distinct().size == 4) {
             gameMaster.decreaseHP()
@@ -451,7 +472,7 @@ class StartController {
     suspend fun debtDamageState(user: User, bot: TelegramBot) {
         val gameMaster = getGameMaster(user.id)
 
-        message { "Собранное количество долгов:" - bold { gameMaster.debts.distinct().size.toString() } }.replyKeyboardRemove()
+        message { "Собранное количество долгов: " - bold { gameMaster.debts.distinct().size.toString() } }.replyKeyboardRemove()
             .send(user, bot)
         gameMaster.decreaseHP(gameMaster.debts.distinct().size)
 
@@ -531,15 +552,22 @@ class StartController {
             State.ultra + "_4", State.ultra + "_5", State.ultra + "_6", State.ultra + "_7"]
     )
     suspend fun enterQuantityUltra(update: ProcessedUpdate, user: User, bot: TelegramBot) {
-        getGameMaster(user.id).setFirstQuantity(update.text.split("_").lastOrNull()?.toIntOrNull() ?: 1)
-        message { "Сколько единиц навыков стоит ульта?" }.inlineKeyboardMarkup {
-            enterQuantityInlineKeyboardMarkup(3, getGameMaster(user.id).getMaxNumberAction(false))
-        }.send(user, bot)
+        val gameMaster = getGameMaster(user.id)
+        gameMaster.setFirstQuantity(update.text.split("_").lastOrNull()?.toIntOrNull() ?: 1)
+        if (gameMaster.getCanUltra()) {
+            getGameMaster(user.id).executeAction()
+            message { "Выполнена ульта" }.replyKeyboardRemove().send(user, bot)
+        } else {
+            message { "Не хватает использованных навыков для использования ульты" }.replyKeyboardRemove().send(user, bot)
+        }
+        message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
+        startRoundMessages(user, bot)
     }
 
     @CommandHandler.CallbackQuery(["1", "2", "3", "4", "5", "6", "7", "8", "9"])
     suspend fun processQuantityState(update: ProcessedUpdate, user: User, bot: TelegramBot) {
         (update.text.toIntOrNull() ?: 1).let {
+            println("quantity: $it")
             if (getGameMaster(user.id).getAction() == State.ultra)
                 getGameMaster(user.id).setSecondQuantity(it)
             else
