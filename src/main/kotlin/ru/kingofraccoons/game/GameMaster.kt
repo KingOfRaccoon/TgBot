@@ -17,15 +17,17 @@ class GameMaster(private val userId: Long) {
     private var firstQuantity: Int = 0
     private var secondQuantity: Int = 0
     private var increase = 1
-    private var actualHelpCard = mutableListOf<HelpCard>()
+    private var actualHelpCard = mutableMapOf<HelpCard, Int>()
     private var endedHelpCard = mutableListOf<HelpCard>()
-    var helpCardMessage = ""
+    var helpCardMessage = mutableListOf("")
     var statusMessage = mutableMapOf<Pair<String, Int>, String>()
     var tempStatus: Status? = null
     var allOrNothingValue = -1
     var perfectionismValue = 0
     val debts = mutableListOf<String>()
     var notes = listOf<String>()
+
+    fun containsMimHelpCard() = actualHelpCard.contains(HelpCard.MissAndMister)
 
     fun updateAllOrNothingValue(value: Int) {
         actionCard?.let { it.shield -= value }
@@ -59,7 +61,7 @@ class GameMaster(private val userId: Long) {
     fun addHelpCard(nameHelpCard: String) {
         HelpCard.entries.find { it.description == nameHelpCard }?.let {
             power -= it.cost
-            actualHelpCard.add(it)
+            actualHelpCard.put(it, it.countMoves)
         }
     }
 
@@ -124,8 +126,8 @@ class GameMaster(private val userId: Long) {
             }
 
             State.ultra -> {
-                power -= actionCard?.costUltra ?: 0
-                actionCard?.countSkill = actionCard?.countSkill?.minus(secondQuantity) ?: 0
+                power -= firstQuantity
+                actionCard?.countSkill = actionCard?.let { it.countSkill.minus(it.costUltra) } ?: 0
             }
 
             State.status -> {}
@@ -142,20 +144,22 @@ class GameMaster(private val userId: Long) {
         }
         endedHelpCard.removeIf { it.cooldown == 0 }
         actualHelpCard.forEach {
-            when (it) {
+            when (it.key) {
                 HelpCard.YourShow -> {
-                    helpCardMessage = "Смена персонажа быстрое действие"
+                    helpCardMessage.add("Смена персонажа быстрое действие")
                 }
 
                 HelpCard.MissAndMister -> {
-                    helpCardMessage = "Карты подмоги: +3 энергии в начале раунда"
-                    power += 3
+                    helpCardMessage.add("Карты подмоги: активный персонаж в конце раунда получает 1 единицу навыка (если навыков максимальное количество, то персонаж с наименьшим количеством единиц навыков)")
+                    if (actionCard?.let { it.countSkill < it.costUltra } == true)
+                        actionCard?.countSkill = (actionCard?.countSkill ?: 0) + 1
+                    else
+                        cards.minBy { it.countSkill }.countSkill++
                 }
 
                 HelpCard.StudentHighFlight -> {
                     val randomAction = listOf(State.hp, State.shield, State.power).random()
-                    helpCardMessage =
-                        "Карты подмоги: СВП - прибавил ${getMessageForIncreaseOrDecreaseButton(randomAction)}"
+                    helpCardMessage.add("Карты подмоги: СВП - прибавил ${getMessageForIncreaseOrDecreaseButton(randomAction)}")
                     when (randomAction) {
                         State.hp -> cards.random().hp += 2
                         State.power -> power += 2
@@ -164,18 +168,15 @@ class GameMaster(private val userId: Long) {
                 }
 
                 HelpCard.Mansarda -> {
-                    helpCardMessage =
-                        "Карты подмоги: В начале раунда прибавляет оставшиеся в прошлом раунде единицы энергии (до 3)"
+                    helpCardMessage.add("Карты подмоги: В начале раунда прибавляет оставшиеся в прошлом раунде единицы энергии (до 3)")
                     power += min(3, power)
                 }
             }
+            actualHelpCard[it.key]?.minus(1)?.let { value -> actualHelpCard[it.key] = value }
         }
 
-        actualHelpCard.forEach {
-            it.countMoves -= 1
-        }
-        endedHelpCard.addAll(actualHelpCard.filter { it.countMoves == 0 && it.cooldown != 0 })
-        actualHelpCard.removeIf { it.countMoves == 0 }
+        endedHelpCard.addAll(actualHelpCard.keys.filter { it.countMoves == 0 && it.cooldown != 0 })
+        actualHelpCard.filter { it.value == 0 }.forEach { actualHelpCard.remove(it.key) }
     }
 
     fun clearQuantities() {
@@ -210,7 +211,7 @@ class GameMaster(private val userId: Long) {
         perfectionismValue = 0
         tempStatus = null
         statusMessage.clear()
-        helpCardMessage = ""
+        helpCardMessage.clear()
         endedHelpCard.clear()
         actualHelpCard.clear()
     }
@@ -218,7 +219,7 @@ class GameMaster(private val userId: Long) {
     fun getAllHelpCards() =
         HelpCard.entries.toTypedArray().filter {
             it.name !in endedHelpCard.map { it.name } &&
-                    it.name !in actualHelpCard.map { it.name } &&
+                    it.name !in actualHelpCard.keys.map { it.name } &&
                     it.cost <= power
         }.chunked(2)
 
@@ -233,7 +234,7 @@ class GameMaster(private val userId: Long) {
         message {
             bold { "Персонаж ${it.index}" } - ": ${it.hp} жизней${Emoji.RedHeart}\n" +
                     "Количество навыков: ${it.countSkill}\n" + "Щит${Emoji.Shield}: ${it.shield}\n" +
-                    "Статусы: " + (if (it.statuses.isNotEmpty()) "[\n${it.statuses.keys.joinToString { "  " + it.title + " - " + it.description }}\n]" else "[]")
+                    "Статусы: " + (if (it.statuses.isNotEmpty()) "[\n${it.statuses.keys.joinToString("\n") { "  " + it.title + " - " +  (if (it.inTeam && it == Status.Tox) "каждый ход прибавляется 1 очко навыка" else it.description) }}\n]" else "[]")
         }
     }
 
@@ -254,8 +255,7 @@ class GameMaster(private val userId: Long) {
     }
 
     fun startNewRound() {
-        executeHelpCard()
-        executeAction()
+//        executeAction()
         cards.forEach { it.executeStatus() }
         tempStatus = null
     }
@@ -280,10 +280,13 @@ class GameMaster(private val userId: Long) {
     fun getDistinctNotesCount() =
         notes.associateWith { notes.count { note -> note == it } }.toList().maxBy { it.second }.second
 
+    fun isEndDebts() = debts.associateWith { debts.count { debt -> debt == it } }.toList().maxOf { it.second } == 4
+
     fun getDistinctDebts() =
         debts
-            .associateWith { debts.count { debt -> debt == it } }.toList()
-            .sortedByDescending { it.second }.map { it.first }
+            .associateWith { debts.count { debt -> debt == it } }.asSequence().toList()
+            .sortedByDescending { it.value }.map { pair -> List(pair.value) { pair.key } }.flatten().take(4)
+            .toList()
 
     fun randomActionOnActionCard(index: Int): Int {
         val randomNumber = (0..3).random()

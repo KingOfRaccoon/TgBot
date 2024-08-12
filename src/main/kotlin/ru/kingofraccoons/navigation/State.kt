@@ -2,6 +2,7 @@ package ru.kingofraccoons.navigation
 
 object State {
     const val newRound = "Новый раунд"
+    const val endGame = "Конец игры"
     const val increase = "increase_"
     const val decrease = "decrease_"
 

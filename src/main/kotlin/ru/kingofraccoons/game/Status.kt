@@ -11,7 +11,7 @@ enum class Status(
     val shown: Boolean = true
 ) {
     // 0
-    Barrier(StatusName.Barrier, "Защита от первой атаки"),
+    Barrier(StatusName.Barrier, "Защита от первой атаки", countRounds = Int.MAX_VALUE,),
     RedHeadGirlfriend(
         StatusName.RedHeadGirlfriend,
         "В конце этого и следующего раунда снимает 1hp всей команде",
@@ -41,7 +41,7 @@ enum class Status(
     //6
     Vibe(
         StatusName.Vibe,
-        "В конце этого и последующего раундов союзники получают по 1 щиту",
+        "В конце этого и последующего раундов союзники получают по 2 щита",
         2,
         2,
         actionIsAllTeam = false
@@ -89,8 +89,9 @@ enum class Status(
     ProperNutrition(
         StatusName.ProperNutrition,
         "Следующий навык персонажа снижен на 50% (сносит лишь половину hp, хиллит половину и тд)"
-    )
+    ),
     // 19
+    MisterAndMiss("МиМ ГУАП", "активный персонаж в конце раунда получает 1 единицу навыка (если навыков максимальное количество, то персонаж с наименьшим количеством единиц навыков)", shown = false)
 }
 
 object StatusName {

@@ -22,6 +22,7 @@ import ru.kingofraccoons.game.StatusName
 import ru.kingofraccoons.navigation.State
 
 class StartController {
+    @CommonHandler.Text([State.endGame])
     @CommandHandler([State.start])
     suspend fun startState(user: User, bot: TelegramBot) {
         getGameMaster(user.id).setDefaultValues()
@@ -132,6 +133,8 @@ class StartController {
         val status = Status.entries.toTypedArray().find { it.title == value.text }
         if (status != null) gameMaster.addStatusInAllCards(status)
         message { "Ко всей команде применен статус " - bold { status?.title.orEmpty() } }.send(user, bot)
+        message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
+        startRoundMessages(user, bot)
     }
 
     @CommandHandler.CallbackQuery([StatusName.NutsWithMilk, StatusName.Vibe])
@@ -260,16 +263,17 @@ class StartController {
         if (gameMaster.tempStatus == null) {
             when (val action = gameMaster.getAction().also { println("action: $it") }) {
                 State.hp, State.power, State.shield -> {
-                    message { "Вы выбрали действие ${getMessageItem(action)}" }.inlineKeyboardMarkup {
-                        "Увеличить ${getMessageForIncreaseOrDecreaseButton(action)}" callback State.increase + action
-                        "Уменьшить ${getMessageForIncreaseOrDecreaseButton(action)}" callback State.decrease + action
-                    }.send(user, bot)
+                    message { "Вы выбрали действие ${getMessageItem(action)}" }.replyKeyboardRemove()
+                        .inlineKeyboardMarkup {
+                            "Увеличить ${getMessageForIncreaseOrDecreaseButton(action)}" callback State.increase + action
+                            "Уменьшить ${getMessageForIncreaseOrDecreaseButton(action)}" callback State.decrease + action
+                        }.send(user, bot)
                 }
 
                 State.skill -> {
                     messageForSelectedAction(action, user, bot)
                     message { "Сколько энергии стоит навык?" }.replyKeyboardRemove().inlineKeyboardMarkup {
-                        enterQuantityInlineKeyboardMarkup(1, gameMaster.getMaxNumberAction(false))
+                        enterQuantityInlineKeyboardMarkup(0, gameMaster.getMaxNumberAction(false))
                     }.send(user, bot)
                 }
 
@@ -297,9 +301,12 @@ class StartController {
                 }
             }
         } else {
+            if (gameMaster.containsMimHelpCard())
+                gameMaster.executeHelpCard()
             if (gameMaster.allOrNothingValue != -1) {
                 gameMaster.addShieldInActionCard()
                 message { "Отнимите противнику ${gameMaster.getEnemyDecreaseValue(gameMaster.allOrNothingValue)}" }
+                    .replyKeyboardRemove()
                     .send(user, bot)
             } else {
                 if (gameMaster.tempStatus?.actionIsAllTeam == false) { // Nuts or Vibe
@@ -310,15 +317,16 @@ class StartController {
                 } else { // often status
                     when (gameMaster.tempStatus?.title) {
                         StatusName.AllOrNothing -> {
-                            message { "Выберите количество щита, которые готовы у себя отнять" }.inlineKeyboardMarkup {
-                                enterQuantityInlineKeyboardMarkup(1, gameMaster.getShieldActionCard(5)) {
-                                    "${StatusName.AllOrNothing}_$it"
-                                }
-                            }.send(user, bot)
+                            message { "Выберите количество щита, которые готовы у себя отнять" }.replyKeyboardRemove()
+                                .inlineKeyboardMarkup {
+                                    enterQuantityInlineKeyboardMarkup(1, gameMaster.getShieldActionCard(5)) {
+                                        "${StatusName.AllOrNothing}_$it"
+                                    }
+                                }.send(user, bot)
                         }
 
                         StatusName.Tox -> {
-                            message { "Выберите, кто накладывает эффект" }.replyKeyboardMarkup {
+                            message { "Выберите, кто накладывает эффект" }.replyKeyboardRemove().replyKeyboardMarkup {
                                 +"Эффект наложен на вас"
                                 +"Эффект наложили вы"
                             }.send(user, bot)
@@ -332,7 +340,7 @@ class StartController {
                                     }
                                 else
                                     "У вас " - bold { "пока что" } - " нет долгов"
-                            }.replyKeyboardMarkup {
+                            }.replyKeyboardRemove().replyKeyboardMarkup {
                                 if (gameMaster.power > 0)
                                     +"Получить долг"
                                 +"Ударить"
@@ -346,13 +354,14 @@ class StartController {
                                         " - Прибавить 3 энергии\n" +
                                         " - Прибавить 2 единицы щита\n" +
                                         " - +2 к следующей атаке персонажа"
-                            }.send(user, bot)
+                            }.replyKeyboardRemove().send(user, bot)
 
                             message {
                                 "Выпало действие: " -
                                         bold { GameMaster.randomActions[gameMaster.randomActionOnActionCard(index)] }
                             }.send(user, bot)
-
+                            message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
+                            startRoundMessages(user, bot)
                         }
 
                         StatusName.MusicLottery -> {
@@ -360,17 +369,21 @@ class StartController {
                                 +"Вытянуть ноты"
                                 br()
                                 +"Идеальная мелодия"
-                            }.send(user, bot)
+                            }.replyKeyboardRemove().send(user, bot)
                         }
 
                         StatusName.Sophistication -> {
                             gameMaster.addStatusInCard(Status.Sophistication)
                             message { "На персонажа $index наложен статус " - bold { "Изыск" } }.send(user, bot)
+                            message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
+                            startRoundMessages(user, bot)
                         }
 
                         StatusName.Provocateur -> {
                             gameMaster.addStatusInCard(Status.Provocateur)
                             message { "На персонажа $index наложен статус " - bold { "Провокатор" } }.send(user, bot)
+                            message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
+                            startRoundMessages(user, bot)
                         }
 
                         StatusName.SessionReminder -> {
@@ -379,6 +392,8 @@ class StartController {
                                 user,
                                 bot
                             )
+                            message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
+                            startRoundMessages(user, bot)
                         }
 
                         StatusName.FashionableVerdict -> {
@@ -387,6 +402,8 @@ class StartController {
                                 user,
                                 bot
                             )
+                            message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
+                            startRoundMessages(user, bot)
                         }
 
                         StatusName.ProperNutrition -> {
@@ -395,6 +412,8 @@ class StartController {
                                 user,
                                 bot
                             )
+                            message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
+                            startRoundMessages(user, bot)
                         }
 
                         else -> {}
@@ -446,7 +465,7 @@ class StartController {
             else
                 "У вас " - bold { "пока что" } - " нет долгов"
         }.replyKeyboardRemove().send(user, bot)
-        if (gameMaster.debts.distinct().size == 4) {
+        if (gameMaster.isEndDebts()) {
             gameMaster.decreaseHP()
             gameMaster.debts.clear()
             message { "Собрано 4 долга, выбранному персонажу снесено 4 HP" }.send(user, bot)
@@ -488,7 +507,7 @@ class StartController {
                     "Ваша команда каждый раунд теряет по 2 HP в течении 3 раундов"
         }.send(user, bot)
         gameMaster.tempStatus?.inTeam = true
-        gameMaster.addStatusInAllCards()
+        gameMaster.addStatusInCard()
 
         message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
         startRoundMessages(user, bot)
@@ -524,12 +543,28 @@ class StartController {
         }.send(user, bot)
     }
 
-    @CommandHandler.CallbackQuery(["СВП ГУАП", "МиМ ГУАП", "ТШ ГУАП", "Мансарда"])
+    @CommandHandler.CallbackQuery(["МиМ ГУАП"])
+    suspend fun mimState(update: ProcessedUpdate, user: User, bot: TelegramBot) {
+        val gameMaster = getGameMaster(user.id)
+        gameMaster.addHelpCard(update.text)
+        message { "Разыграна карта подмоги: " - bold { update.text } }.send(user, bot)
+        message { "Выберите персонажа" }.replyKeyboardMarkup {
+            gameMaster.getReplyButtonsInfoWithoutAction().forEach {
+                +it
+                br()
+            }
+            options {
+                resizeKeyboard = true
+            }
+        }.send(user, bot)
+    }
+
+    @CommandHandler.CallbackQuery(["СВП ГУАП", "ТШ ГУАП", "Мансарда"])
     suspend fun helpCardState(update: ProcessedUpdate, user: User, bot: TelegramBot) {
         getGameMaster(user.id).addHelpCard(update.text)
         message { "Разыграна карта подмоги: " - bold { update.text } }.send(user, bot)
 
-        getGameMaster(user.id).executeAction()
+        getGameMaster(user.id).executeHelpCard()
         message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
         startRoundMessages(user, bot)
     }
@@ -558,7 +593,8 @@ class StartController {
             getGameMaster(user.id).executeAction()
             message { "Выполнена ульта" }.replyKeyboardRemove().send(user, bot)
         } else {
-            message { "Не хватает использованных навыков для использования ульты" }.replyKeyboardRemove().send(user, bot)
+            message { "Не хватает использованных навыков для использования ульты" }.replyKeyboardRemove()
+                .send(user, bot)
         }
         message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
         startRoundMessages(user, bot)
@@ -589,7 +625,7 @@ class StartController {
     private suspend fun startRoundMessages(user: User, bot: TelegramBot) {
         val gameMaster = getGameMaster(user.id)
         gameMaster.clearQuantities()
-        gameMaster.helpCardMessage.let { if (it.isNotEmpty()) message { it }.send(user, bot) }
+        gameMaster.helpCardMessage.let { if (it.isNotEmpty()) message { it.joinToString("\n") { it } }.send(user, bot) }
         message { "Энергия${Emoji.Lightning}: ${gameMaster.power}" }.send(user, bot)
         gameMaster.printInfo().forEachIndexed { i, it ->
             if (i == 0)
@@ -610,6 +646,7 @@ class StartController {
                 "Карта подмоги" callback State.helpCard
                 br()
                 "Новый раунд" callback State.newRound
+                "Закончить игру" callback State.endGame
             }.send(user, bot)
         else
             message { "Выберите действие" }.inlineKeyboardMarkup {

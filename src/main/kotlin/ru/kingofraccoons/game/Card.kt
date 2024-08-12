@@ -11,7 +11,7 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
         set(value) {
             field = min(
                 _hp, if (shield > 0 && (value - field) < 0) {
-                    if (shield > (field - value)) {
+                    if (shield >= (field - value)) {
                         shield -= (field - value)
                         field
                     } else {
@@ -29,6 +29,9 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
             )
         }
     var countSkill = 0
+        set(value) {
+            field = min(costUltra, value)
+        }
     val statuses = mutableMapOf<Status, Int>()
 
     override fun toString(): String {
