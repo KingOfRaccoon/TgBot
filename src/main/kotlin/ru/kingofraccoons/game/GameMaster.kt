@@ -19,7 +19,7 @@ class GameMaster(private val userId: Long) {
     private var increase = 1
     private var actualHelpCard = mutableMapOf<HelpCard, Int>()
     private var endedHelpCard = mutableListOf<HelpCard>()
-    var helpCardMessage = mutableListOf("")
+    var helpCardMessage = mutableSetOf("")
     var statusMessage = mutableMapOf<Pair<String, Int>, String>()
     var tempStatus: Status? = null
     var allOrNothingValue = -1
@@ -87,6 +87,8 @@ class GameMaster(private val userId: Long) {
         actionCard = cards.find { it.index == index }
     }
 
+    fun containsActionCardRat() = cards.all { it.statuses.keys.contains(Status.Rat) }
+
     fun getShieldActionCard(defaultValue: Int) = actionCard?.shield ?: defaultValue
 
     fun getMaxNumberAction(isIncreasing: Boolean): Int {
@@ -123,11 +125,21 @@ class GameMaster(private val userId: Long) {
             State.skill -> {
                 power -= firstQuantity
                 actionCard?.countSkill = actionCard?.countSkill?.plus(1) ?: 0
+                if (actionCard?.statuses?.keys?.contains(Status.Sophistication) == true) {
+                    actionCard?.statuses?.remove(Status.Sophistication)
+                }
+
+                if (actionCard?.statuses?.keys?.contains(Status.ProperNutrition) == true) {
+                    actionCard?.statuses?.remove(Status.ProperNutrition)
+                }
             }
 
             State.ultra -> {
                 power -= firstQuantity
                 actionCard?.countSkill = actionCard?.let { it.countSkill.minus(it.costUltra) } ?: 0
+                if (actionCard?.statuses?.keys?.contains(Status.Sophistication) == true) {
+                    actionCard?.statuses?.remove(Status.Sophistication)
+                }
             }
 
             State.status -> {}
@@ -138,11 +150,11 @@ class GameMaster(private val userId: Long) {
         clearQuantities()
     }
 
-    fun executeHelpCard() {
-        endedHelpCard.forEach {
-            it.cooldown -= 1
-        }
-        endedHelpCard.removeIf { it.cooldown == 0 }
+    fun executeHelpCard(oldPower: Int = power) {
+//        endedHelpCard.forEach {
+//            it.cooldown -= 1
+//        }
+//        endedHelpCard.removeIf { it.cooldown == 0 }
         actualHelpCard.forEach {
             when (it.key) {
                 HelpCard.YourShow -> {
@@ -159,7 +171,13 @@ class GameMaster(private val userId: Long) {
 
                 HelpCard.StudentHighFlight -> {
                     val randomAction = listOf(State.hp, State.shield, State.power).random()
-                    helpCardMessage.add("Карты подмоги: СВП - прибавил ${getMessageForIncreaseOrDecreaseButton(randomAction)}")
+                    helpCardMessage.add(
+                        "Карты подмоги: СВП - прибавил ${
+                            getMessageForIncreaseOrDecreaseButton(
+                                randomAction
+                            )
+                        }"
+                    )
                     when (randomAction) {
                         State.hp -> cards.random().hp += 2
                         State.power -> power += 2
@@ -168,14 +186,15 @@ class GameMaster(private val userId: Long) {
                 }
 
                 HelpCard.Mansarda -> {
+
                     helpCardMessage.add("Карты подмоги: В начале раунда прибавляет оставшиеся в прошлом раунде единицы энергии (до 3)")
-                    power += min(3, power)
+                    power += min(3, oldPower)
                 }
             }
             actualHelpCard[it.key]?.minus(1)?.let { value -> actualHelpCard[it.key] = value }
         }
 
-        endedHelpCard.addAll(actualHelpCard.keys.filter { it.countMoves == 0 && it.cooldown != 0 })
+        endedHelpCard.addAll(actualHelpCard.keys.filter { it.countMoves == 0 })
         actualHelpCard.filter { it.value == 0 }.forEach { actualHelpCard.remove(it.key) }
     }
 
@@ -234,7 +253,7 @@ class GameMaster(private val userId: Long) {
         message {
             bold { "Персонаж ${it.index}" } - ": ${it.hp} жизней${Emoji.RedHeart}\n" +
                     "Количество навыков: ${it.countSkill}\n" + "Щит${Emoji.Shield}: ${it.shield}\n" +
-                    "Статусы: " + (if (it.statuses.isNotEmpty()) "[\n${it.statuses.keys.joinToString("\n") { "  " + it.title + " - " +  (if (it.inTeam && it == Status.Tox) "каждый ход прибавляется 1 очко навыка" else it.description) }}\n]" else "[]")
+                    "Статусы: " + (if (it.statuses.isNotEmpty()) "[\n${it.statuses.keys.joinToString("\n") { "  " + it.title + " - " + (if (!it.inTeam && it == Status.Tox) "каждый ход прибавляется 1 очко навыка" else it.description) }}\n]" else "[]")
         }
     }
 
@@ -258,6 +277,9 @@ class GameMaster(private val userId: Long) {
 //        executeAction()
         cards.forEach { it.executeStatus() }
         tempStatus = null
+        val oldPower = power
+        power = startPower
+        executeHelpCard(oldPower)
     }
 
     fun addStatusInAllTeamCards() {
@@ -270,7 +292,7 @@ class GameMaster(private val userId: Long) {
 
     fun addDebt() {
         power--
-        debts.add(allStudentDebts.random())
+        repeat(2) { debts.add(allStudentDebts.random()) }
     }
 
     fun setNotes(isIdeal: Boolean = false) {
@@ -280,11 +302,12 @@ class GameMaster(private val userId: Long) {
     fun getDistinctNotesCount() =
         notes.associateWith { notes.count { note -> note == it } }.toList().maxBy { it.second }.second
 
-    fun isEndDebts() = debts.associateWith { debts.count { debt -> debt == it } }.toList().maxOf { it.second } == 4
+    fun getCountMostPopularDebts() = debts.associateWith { debts.count { debt -> debt == it } }.toList().maxOf { it.second }
+
+    fun isEndDebts() = getCountMostPopularDebts() == 4
 
     fun getDistinctDebts() =
-        debts
-            .associateWith { debts.count { debt -> debt == it } }.asSequence().toList()
+        debts.associateWith { debts.count { debt -> debt == it } }.asSequence().toList()
             .sortedByDescending { it.value }.map { pair -> List(pair.value) { pair.key } }.flatten().take(4)
             .toList()
 
@@ -311,6 +334,10 @@ class GameMaster(private val userId: Long) {
         }
 
         return Random.nextBoolean() || perfectionismValue == 0
+    }
+
+    fun decreaseHPAllCards() {
+        cards.forEach { it.hp-- }
     }
 
     companion object {

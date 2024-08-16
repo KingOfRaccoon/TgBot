@@ -33,6 +33,7 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
             field = min(costUltra, value)
         }
     val statuses = mutableMapOf<Status, Int>()
+    private val endedStatuses = mutableMapOf<Status, Int>()
 
     override fun toString(): String {
         return "Персонаж $index: $hp жизней\n" +
@@ -40,6 +41,7 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
     }
 
     fun executeStatus() {
+        canUseSkill = true
         statuses.forEach { (it, _) ->
             when (it) {
                 Status.RedHeadGirlfriend -> hp += it.quantity
@@ -47,22 +49,24 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
                 Status.Deadline -> hp += it.quantity
                 Status.Vibe -> shield += it.quantity
                 Status.Tox -> if (it.inTeam) hp += it.quantity else countSkill++
-                Status.FashionableVerdict -> {
-                    if (it.delay == 0) {
-                        canUseSkill = false
-                        it.delay = 2
-                    } else {
-                        it.delay--
-                        canUseSkill = true
-                    }
-                }
+                Status.FashionableVerdict -> { canUseSkill = false }
 
                 else -> {}
             }
             statuses[it]?.minus(1)?.let { value -> statuses[it] = value }
         }
 
+        endedStatuses.forEach { (status, _) ->
+            endedStatuses[status]?.minus(1)?.let { value -> statuses[status] = value }
+        }
+
+        endedStatuses.filter { it.value == 0 }.forEach {
+            statuses[it.key] = it.key.countRounds
+            endedStatuses.remove(it.key)
+        }
+
         statuses.filter { it.value == 0 }.forEach {
+            if (it.key.delay != 0) endedStatuses[it.key] = it.key.delay
             statuses.remove(it.key)
         }
     }

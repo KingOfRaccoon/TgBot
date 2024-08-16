@@ -36,7 +36,7 @@ enum class Status(
         1
     ),
 
-    Perfectionism(StatusName.Perfectionism, "Чет сложное"),
+    Perfectionism(StatusName.Perfectionism, "Пройди тест на идеал 5 раз!"),
 
     //6
     Vibe(
@@ -66,23 +66,19 @@ enum class Status(
 
     Sophistication(
         StatusName.Sophistication,
-        "Увеличиваем урон на количество энергии"
+        "Увеличиваем урон на количество энергии",
+        countRounds = Int.MAX_VALUE
     ),
     NineLife(StatusName.NineLife, "А кто сказал, что я умер?", shown = false),
 
     // 15
-    Provocateur(StatusName.Provocateur, "Все на меня!"),
+    Provocateur(StatusName.Provocateur, "Все на меня!", countRounds = 2),
 
-    SessionReminder(
-        StatusName.SessionReminder,
-        "Персонаж своей атакой наносит на 1 hp меньше"
-    ),
 
     FashionableVerdict(
         StatusName.FashionableVerdict,
         "Я слишком хорош, чтобы ты использовал свои навыки!",
-        countRounds = Int.MAX_VALUE,
-        delay = 0
+        delay = 2
     ),
 
     // 18
@@ -111,7 +107,6 @@ object StatusName {
     const val Sophistication = "Изыск"
     const val NineLife = "Девятая жизнь"
     const val Provocateur = "Провокатор"
-    const val SessionReminder = "Напоминание о сессии"
     const val FashionableVerdict = "Модный приговор"
     const val ProperNutrition = "Правильное питание"
 }
