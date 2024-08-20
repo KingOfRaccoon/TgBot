@@ -11,11 +11,11 @@ enum class Status(
     val shown: Boolean = true
 ) {
     // 0
-    Barrier(StatusName.Barrier, "Защита от первой атаки", countRounds = Int.MAX_VALUE,),
+    Barrier(StatusName.Barrier, "Защита от первой атаки", countRounds = Int.MAX_VALUE),
     RedHeadGirlfriend(
         StatusName.RedHeadGirlfriend,
-        "В конце этого и следующего раунда снимает 1hp всей команде",
-        -1,
+        "В конце этого и следующего раунда снимает 2hp всей команде",
+        -2,
         2,
     ),
     NutsWithMilk(
@@ -69,7 +69,7 @@ enum class Status(
         "Увеличиваем урон на количество энергии",
         countRounds = Int.MAX_VALUE
     ),
-    NineLife(StatusName.NineLife, "А кто сказал, что я умер?", shown = false),
+    NineLife(StatusName.NineLife, "А кто сказал, что я умер?"),
 
     // 15
     Provocateur(StatusName.Provocateur, "Все на меня!", countRounds = 2),
@@ -86,8 +86,14 @@ enum class Status(
         StatusName.ProperNutrition,
         "Следующий навык персонажа снижен на 50% (сносит лишь половину hp, хиллит половину и тд)"
     ),
+
     // 19
-    MisterAndMiss("МиМ ГУАП", "активный персонаж в конце раунда получает 1 единицу навыка (если навыков максимальное количество, то персонаж с наименьшим количеством единиц навыков)", shown = false)
+    MisterAndMiss(
+        "МиМ ГУАП",
+        "активный персонаж в конце раунда получает 1 единицу навыка " +
+                "(если навыков максимальное количество, то персонаж с наименьшим количеством единиц навыков)",
+        shown = false
+    )
 }
 
 object StatusName {

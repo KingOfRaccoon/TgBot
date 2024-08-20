@@ -18,8 +18,8 @@ class GameMaster(private val userId: Long) {
     private var secondQuantity: Int = 0
     private var increase = 1
     private var actualHelpCard = mutableMapOf<HelpCard, Int>()
-    private var endedHelpCard = mutableListOf<HelpCard>()
-    var helpCardMessage = mutableSetOf("")
+    private var endedHelpCard = mutableMapOf<HelpCard, Int>()
+    var helpCardMessage = mutableMapOf<HelpCard, String>()
     var statusMessage = mutableMapOf<Pair<String, Int>, String>()
     var tempStatus: Status? = null
     var allOrNothingValue = -1
@@ -55,7 +55,7 @@ class GameMaster(private val userId: Long) {
     }
 
     fun decreaseHP(value: Int = 4) {
-        actionCard?.let { it.hp -= value }
+        actionCard?.changeHP(-value)
     }
 
     fun addHelpCard(nameHelpCard: String) {
@@ -102,7 +102,7 @@ class GameMaster(private val userId: Long) {
             State.skill -> min(power, 7)
             State.ultra -> if (firstQuantity != 0) actionCard?.countSkill ?: 5 else min(power, 7)
             else -> power
-        }
+        }.coerceAtMost(9)
     }
 
     fun getCanUltra() = actionCard?.let { it.costUltra <= it.countSkill } == true
@@ -110,12 +110,12 @@ class GameMaster(private val userId: Long) {
     fun executeAction() {
         when (action) {
             State.hp -> {
-                if (increase == -1 && actionCard?.statuses?.keys?.find { it.name == Status.Barrier.name } != null) {
-                    actionCard?.statuses?.remove(Status.Barrier)
-                    return
-                }
+//                if (increase == -1 && actionCard?.statuses?.keys?.find { it.name == Status.Barrier.name } != null) {
+//                    actionCard?.statuses?.remove(Status.Barrier)
+//                    return
+//                }
 
-                actionCard?.hp = (actionCard?.hp ?: 0) + firstQuantity * increase
+                actionCard?.changeHP(firstQuantity * increase)
             }
 
             State.shield -> actionCard?.shield = (actionCard?.shield ?: 0) + firstQuantity * increase
@@ -151,18 +151,15 @@ class GameMaster(private val userId: Long) {
     }
 
     fun executeHelpCard(oldPower: Int = power) {
-//        endedHelpCard.forEach {
-//            it.cooldown -= 1
-//        }
-//        endedHelpCard.removeIf { it.cooldown == 0 }
         actualHelpCard.forEach {
             when (it.key) {
                 HelpCard.YourShow -> {
-                    helpCardMessage.add("Смена персонажа быстрое действие")
+                    helpCardMessage[it.key] = "Смена персонажа быстрое действие"
                 }
 
                 HelpCard.MissAndMister -> {
-                    helpCardMessage.add("Карты подмоги: активный персонаж в конце раунда получает 1 единицу навыка (если навыков максимальное количество, то персонаж с наименьшим количеством единиц навыков)")
+                    helpCardMessage[it.key] =
+                        "Карты подмоги: активный персонаж в конце раунда получает 1 единицу навыка (если навыков максимальное количество, то персонаж с наименьшим количеством единиц навыков)"
                     if (actionCard?.let { it.countSkill < it.costUltra } == true)
                         actionCard?.countSkill = (actionCard?.countSkill ?: 0) + 1
                     else
@@ -171,36 +168,45 @@ class GameMaster(private val userId: Long) {
 
                 HelpCard.StudentHighFlight -> {
                     val randomAction = listOf(State.hp, State.shield, State.power).random()
-                    helpCardMessage.add(
-                        "Карты подмоги: СВП - прибавил ${
-                            getMessageForIncreaseOrDecreaseButton(
-                                randomAction
-                            )
-                        }"
-                    )
+                    helpCardMessage[it.key] = "Карты подмоги: СВП - прибавил ${
+                        getMessageForIncreaseOrDecreaseButton(
+                            randomAction
+                        )
+                    }"
                     when (randomAction) {
-                        State.hp -> cards.random().hp += 2
+                        State.hp -> cards.random().changeHP(2)
                         State.power -> power += 2
                         else -> cards.random().shield += 2
                     }
                 }
 
                 HelpCard.Mansarda -> {
-
-                    helpCardMessage.add("Карты подмоги: В начале раунда прибавляет оставшиеся в прошлом раунде единицы энергии (до 3)")
+                    helpCardMessage[it.key] =
+                        "Карты подмоги: В начале раунда прибавляет оставшиеся в прошлом раунде единицы энергии (до 3)"
                     power += min(3, oldPower)
                 }
             }
             actualHelpCard[it.key]?.minus(1)?.let { value -> actualHelpCard[it.key] = value }
         }
+        endedHelpCard.forEach { (status, _) ->
+            endedHelpCard[status]?.minus(1)?.let { value -> endedHelpCard[status] = value }
+        }
 
-        endedHelpCard.addAll(actualHelpCard.keys.filter { it.countMoves == 0 })
-        actualHelpCard.filter { it.value == 0 }.forEach { actualHelpCard.remove(it.key) }
+        actualHelpCard.filter { it.value == 0 }.forEach {
+            if (it.key.delay != 0) endedHelpCard[it.key] = it.key.delay
+            actualHelpCard.remove(it.key)
+            helpCardMessage.remove(it.key)
+        }
+
+        endedHelpCard.filter { it.value == 0 }.forEach {
+            endedHelpCard.remove(it.key)
+        }
     }
 
     fun clearQuantities() {
         firstQuantity = 0
         secondQuantity = 0
+        tempStatus = null
     }
 
     // 3 == size hp list
@@ -237,7 +243,7 @@ class GameMaster(private val userId: Long) {
 
     fun getAllHelpCards() =
         HelpCard.entries.toTypedArray().filter {
-            it.name !in endedHelpCard.map { it.name } &&
+            it.name !in endedHelpCard.keys.map { it.name } &&
                     it.name !in actualHelpCard.keys.map { it.name } &&
                     it.cost <= power
         }.chunked(2)
@@ -246,6 +252,8 @@ class GameMaster(private val userId: Long) {
         (if (action == State.skill)
             cards.filter { it.canUseSkill }
         else cards).filter { it.hp > 0 && it.canUseSkill }.map { "Персонаж ${it.index}" }
+
+    fun getDiedCards() = cards.filter { it.hp <= 0 }.map { "Персонаж ${it.index}" }
 
     fun getReplyButtonsInfoWithoutAction() = cards.filter { it != actionCard }.map { "Персонаж ${it.index}" }
 
@@ -296,13 +304,14 @@ class GameMaster(private val userId: Long) {
     }
 
     fun setNotes(isIdeal: Boolean = false) {
-        notes = if (isIdeal) allNotes.toList() else List(allNotes.size) { allNotes.random() }
+        notes = if (isIdeal) allNotes.toList() else List(allNotes.size) { allNotes.first() }
     }
 
     fun getDistinctNotesCount() =
         notes.associateWith { notes.count { note -> note == it } }.toList().maxBy { it.second }.second
 
-    fun getCountMostPopularDebts() = debts.associateWith { debts.count { debt -> debt == it } }.toList().maxOf { it.second }
+    fun getCountMostPopularDebts() =
+        debts.associateWith { debts.count { debt -> debt == it } }.toList().maxOf { it.second }
 
     fun isEndDebts() = getCountMostPopularDebts() == 4
 
@@ -314,7 +323,7 @@ class GameMaster(private val userId: Long) {
     fun randomActionOnActionCard(index: Int): Int {
         val randomNumber = (0..3).random()
         when (randomNumber) {
-            0 -> actionCard?.let { it.hp += 2 }
+            0 -> actionCard?.changeHP(2)
             1 -> power += 3
             2 -> actionCard?.let { it.shield += 2 }
             3 -> statusMessage[StatusName.Roulette to index] =
@@ -337,8 +346,10 @@ class GameMaster(private val userId: Long) {
     }
 
     fun decreaseHPAllCards() {
-        cards.forEach { it.hp-- }
+        cards.forEach { it.changeHP(-1) }
     }
+
+    fun containsDiedCards() = cards.any { it.hp == 0 }
 
     companion object {
         const val startPower = 8

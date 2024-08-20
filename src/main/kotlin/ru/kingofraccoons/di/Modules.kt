@@ -13,12 +13,12 @@ object Modules {
         return gameMasters[userId]!!
     }
 
-    fun getUsedNineLife(userId: Long) : Boolean {
+    fun getUsedNineLife(userId: Long, isUsed: Boolean = false) : Boolean {
         if (!usedNineLife.containsKey(userId)) {
             usedNineLife[userId] = false
             return true
         }
 
-        return usedNineLife[userId] ?: false
+        return usedNineLife[userId] ?: false || isUsed
     }
 }
