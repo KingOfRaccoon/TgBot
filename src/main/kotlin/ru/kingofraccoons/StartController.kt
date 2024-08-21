@@ -220,22 +220,37 @@ class StartController {
             if (gameMaster.perfectionismValue == 0)
                 message { "Проверки закончены, статус " - bold { "Перфекционизм" } - " снят" }.send(user, bot)
             else
-                message { "Проверка пройдена. Проверка прошла " - bold { gameMaster.perfectionismValue.toString() } - " раз" }.send(
+                message { "Проверка пройдена. Проверка прошла " -
+                        bold { gameMaster.perfectionismValue.toString() } - " раз" }.send(
                     user,
                     bot
                 )
-            message { "Выберите персонажа" }.replyKeyboardMarkup {
-                gameMaster.getReplyButtonsInfo().forEach {
-                    +it
-                    br()
+
+            when (val action = gameMaster.getAction()) {
+                State.skill -> {
+                    messageForSelectedAction(action, user, bot)
+                    message { "Сколько энергии стоит навык?" }.replyKeyboardRemove().inlineKeyboardMarkup {
+                        enterQuantityInlineKeyboardMarkup(0, gameMaster.getMaxNumberAction(false))
+                    }.send(user, bot)
                 }
-                options {
-                    resizeKeyboard = true
+
+                State.ultra -> {
+                    messageForSelectedAction(action, user, bot)
+                    message { "Сколько энергии стоит ульта?" }.replyKeyboardRemove().inlineKeyboardMarkup {
+                        enterQuantityInlineKeyboardMarkup(1, gameMaster.getMaxNumberAction(false)) {
+                            "${State.ultra}_$it"
+                        }
+                    }.send(user, bot)
                 }
-            }.send(user, bot)
+            }
         } else {
             message { "Проверка на идеал не пройдена. Выбранный персонаж теряет 1HP" }.send(user, bot)
             gameMaster.decreaseHP(1)
+            message { "Проверка на идеал" }.inlineKeyboardMarkup {
+                "Тест на идеал" callback "Тест на идеал"
+                "Меню" callback State.startRound
+            }.send(user, bot)
+
         }
     }
 
@@ -334,6 +349,7 @@ class StartController {
             }
         } else {
             if (gameMaster.containsMimHelpCard()) {
+                getGameMaster(user.id).executeHelpCard()
                 message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
                 startRoundMessages(user, bot)
 
@@ -374,7 +390,7 @@ class StartController {
 
                         StatusName.StudentDebts -> {
                             message {
-                                if (gameMaster.debts.isNotEmpty())
+                                if (gameMaster.debts.isEmpty())
                                     "Ваши долги:\n" - bold {
                                         gameMaster.getDistinctDebts().joinToString { it }
                                     }
@@ -505,18 +521,10 @@ class StartController {
     suspend fun getDebtState(user: User, bot: TelegramBot) {
         val gameMaster = getGameMaster(user.id)
         gameMaster.addDebt()
-        message {
-            if (gameMaster.debts.isNotEmpty())
-                "Собранные долги:\n" - bold {
-                    gameMaster.getDistinctDebts().joinToString { it }
-                }
-            else
-                "У вас " - bold { "пока что" } - " нет долгов"
-        }.replyKeyboardRemove().send(user, bot)
         if (gameMaster.isEndDebts()) {
             gameMaster.decreaseHP()
             gameMaster.debts.clear()
-            message { "Собрано 4 долга, выбранному персонажу снесено 4 HP" }.send(user, bot)
+            message { "Собрано 4 долга, выбранному персонажу снесено 4 HP" }.replyKeyboardRemove().send(user, bot)
         } else {
             message {
                 "Ваши долги:\n" - bold {
@@ -555,11 +563,11 @@ class StartController {
     suspend fun toxInState(user: User, bot: TelegramBot) {
         val gameMaster = getGameMaster(user.id)
         message {
-            "На вашу команду наложен статус " - bold { "Токс" } - "\n" +
-                    "Ваша команда каждый раунд теряет по 2 HP в течении 3 раундов"
+            "На вашего персонажа наложен статус " - bold { "Токс" } - "\n" +
+                    "Персонаж каждый раунд теряет по 2 HP в течении 3 раундов"
         }.send(user, bot)
         gameMaster.tempStatus?.inTeam = true
-        gameMaster.addStatusInAllCards()
+        gameMaster.addStatusInCard()
 
         message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
         startRoundMessages(user, bot)
@@ -569,8 +577,8 @@ class StartController {
     suspend fun toxOutState(user: User, bot: TelegramBot) {
         val gameMaster = getGameMaster(user.id)
         message {
-            "Ваша команда наложила статус " - bold { "Токс" } - "\n" +
-                    "Выбранный персонаж по 1 очку навыков в течении 3 раундов"
+            "Ваш персонаж наложил статус " - bold { "Токс" } - "\n" +
+                    "Выбранный персонаж получает по 1 очку навыков в течении 3 раундов"
         }.send(user, bot)
         gameMaster.tempStatus?.inTeam = false
         gameMaster.addStatusInCard()
@@ -578,7 +586,15 @@ class StartController {
         startRoundMessages(user, bot)
     }
 
-    @CommandHandler.CallbackQuery(["${StatusName.AllOrNothing}_1", "${StatusName.AllOrNothing}_2", "${StatusName.AllOrNothing}_3", "${StatusName.AllOrNothing}_4", "${StatusName.AllOrNothing}_5"])
+    @CommandHandler.CallbackQuery(
+        [
+            "${StatusName.AllOrNothing}_1",
+            "${StatusName.AllOrNothing}_2",
+            "${StatusName.AllOrNothing}_3",
+            "${StatusName.AllOrNothing}_4",
+            "${StatusName.AllOrNothing}_5"
+        ]
+    )
     suspend fun allOrNothingStatusState(update: ProcessedUpdate, user: User, bot: TelegramBot) {
         val gameMaster = getGameMaster(user.id)
         val value =
@@ -615,7 +631,7 @@ class StartController {
     suspend fun helpCardState(update: ProcessedUpdate, user: User, bot: TelegramBot) {
         getGameMaster(user.id).addHelpCard(update.text)
         message { "Разыграна карта подмоги: " - bold { update.text } }.send(user, bot)
-
+        getGameMaster(user.id).executeHelpCard()
         message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
         startRoundMessages(user, bot)
     }
@@ -675,6 +691,8 @@ class StartController {
     private suspend fun startRoundMessages(user: User, bot: TelegramBot) {
         val gameMaster = getGameMaster(user.id)
         gameMaster.clearQuantities()
+        println("gameMaster.helpCardMessage")
+        println(gameMaster.helpCardMessage)
         gameMaster.helpCardMessage.values.let {
             if (it.isNotEmpty()) message { it.joinToString("\n") { it } }.send(
                 user,

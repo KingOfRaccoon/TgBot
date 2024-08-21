@@ -14,15 +14,18 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
     var canUseSkill = true
 
     fun changeHP(changeValue: Int) {
-        if (statuses.containsKey(Status.Barrier) && changeValue < 0){
+        if (statuses.containsKey(Status.Barrier) && changeValue < 0) {
             statuses.remove(Status.Barrier)
             return
         }
 
         val final = if (changeValue >= 0) {
             changeValue
+        } else if (shield + changeValue >= 0) {
+            shield += changeValue
+            0
         } else {
-            shield + changeValue
+            shield + changeValue.also { shield = 0 }
         }
 
         hp += final
@@ -49,7 +52,10 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
                 Status.Deadline -> changeHP(it.quantity)
                 Status.Vibe -> shield += it.quantity
                 Status.Tox -> if (it.inTeam) changeHP(it.quantity) else countSkill++
-                Status.FashionableVerdict -> { canUseSkill = false }
+                Status.FashionableVerdict -> {
+                    canUseSkill = false
+                }
+
                 Status.NineLife -> changeHP((2..6).random())
                 else -> {}
             }

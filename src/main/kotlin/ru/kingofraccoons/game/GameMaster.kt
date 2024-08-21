@@ -59,7 +59,10 @@ class GameMaster(private val userId: Long) {
     }
 
     fun addHelpCard(nameHelpCard: String) {
+        println("nameHelpCard: $nameHelpCard")
+
         HelpCard.entries.find { it.description == nameHelpCard }?.let {
+            println("HelpCard: $it")
             power -= it.cost
             actualHelpCard.put(it, it.countMoves)
         }
@@ -151,6 +154,7 @@ class GameMaster(private val userId: Long) {
     }
 
     fun executeHelpCard(oldPower: Int = power) {
+        println(actualHelpCard)
         actualHelpCard.forEach {
             when (it.key) {
                 HelpCard.YourShow -> {
@@ -191,11 +195,11 @@ class GameMaster(private val userId: Long) {
         endedHelpCard.forEach { (status, _) ->
             endedHelpCard[status]?.minus(1)?.let { value -> endedHelpCard[status] = value }
         }
+        helpCardMessage.filter { it.key !in actualHelpCard.keys}.forEach { helpCardMessage.remove(it.key) }
 
         actualHelpCard.filter { it.value == 0 }.forEach {
             if (it.key.delay != 0) endedHelpCard[it.key] = it.key.delay
             actualHelpCard.remove(it.key)
-            helpCardMessage.remove(it.key)
         }
 
         endedHelpCard.filter { it.value == 0 }.forEach {
@@ -206,6 +210,7 @@ class GameMaster(private val userId: Long) {
     fun clearQuantities() {
         firstQuantity = 0
         secondQuantity = 0
+        allOrNothingValue = -1
         tempStatus = null
     }
 
@@ -251,7 +256,7 @@ class GameMaster(private val userId: Long) {
     fun getReplyButtonsInfo() =
         (if (action == State.skill)
             cards.filter { it.canUseSkill }
-        else cards).filter { it.hp > 0 && it.canUseSkill }.map { "Персонаж ${it.index}" }
+        else cards).filter { it.hp > 0 }.map { "Персонаж ${it.index}" }
 
     fun getDiedCards() = cards.filter { it.hp <= 0 }.map { "Персонаж ${it.index}" }
 
@@ -285,6 +290,7 @@ class GameMaster(private val userId: Long) {
 //        executeAction()
         cards.forEach { it.executeStatus() }
         tempStatus = null
+        allOrNothingValue = -1
         val oldPower = power
         power = startPower
         executeHelpCard(oldPower)
@@ -300,11 +306,15 @@ class GameMaster(private val userId: Long) {
 
     fun addDebt() {
         power--
-        repeat(2) { debts.add(allStudentDebts.random()) }
+        repeat(2) {
+            if (debts.size > 4)
+                debts.removeAt(debts.lastIndex)
+            debts.add(0, allStudentDebts.random())
+        }
     }
 
     fun setNotes(isIdeal: Boolean = false) {
-        notes = if (isIdeal) allNotes.toList() else List(allNotes.size) { allNotes.first() }
+        notes = if (isIdeal) List(allNotes.size) { allNotes.first() } else allNotes.toList()
     }
 
     fun getDistinctNotesCount() =
