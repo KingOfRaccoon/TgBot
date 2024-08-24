@@ -17,15 +17,31 @@ class GameMaster(private val userId: Long) {
     private var firstQuantity: Int = 0
     private var secondQuantity: Int = 0
     private var increase = 1
-    private var actualHelpCard = mutableMapOf<HelpCard, Int>()
+    private var statusMessage = mutableMapOf<Pair<String, Int>, String>()
     private var endedHelpCard = mutableMapOf<HelpCard, Int>()
+    private var actualHelpCard = mutableMapOf<HelpCard, Int>()
+    private var countFury = 0
     var helpCardMessage = mutableMapOf<HelpCard, String>()
-    var statusMessage = mutableMapOf<Pair<String, Int>, String>()
     var tempStatus: Status? = null
     var allOrNothingValue = -1
     var perfectionismValue = 0
     val debts = mutableListOf<String>()
     var notes = listOf<String>()
+
+    fun addFury() {
+        if (cards.all { it.statuses.containsKey(Status.Fury) }) {
+            countFury++
+            if (countFury == 7) {
+                cards.forEach { it.shield += 3 }
+                countFury = 0
+            }
+        }
+    }
+
+    fun getFuryCount() = if (cards.all { it.statuses.containsKey(Status.Fury) }) "Количество ярости: $countFury" else ""
+
+    fun actionCardContainsFashionableVerdictStatus() =
+        actionCard?.statuses?.containsKey(Status.FashionableVerdict) == true
 
     fun containsMimHelpCard() = actualHelpCard.contains(HelpCard.MissAndMister)
 
@@ -59,10 +75,7 @@ class GameMaster(private val userId: Long) {
     }
 
     fun addHelpCard(nameHelpCard: String) {
-        println("nameHelpCard: $nameHelpCard")
-
         HelpCard.entries.find { it.description == nameHelpCard }?.let {
-            println("HelpCard: $it")
             power -= it.cost
             actualHelpCard.put(it, it.countMoves)
         }
@@ -113,11 +126,6 @@ class GameMaster(private val userId: Long) {
     fun executeAction() {
         when (action) {
             State.hp -> {
-//                if (increase == -1 && actionCard?.statuses?.keys?.find { it.name == Status.Barrier.name } != null) {
-//                    actionCard?.statuses?.remove(Status.Barrier)
-//                    return
-//                }
-
                 actionCard?.changeHP(firstQuantity * increase)
             }
 
@@ -126,6 +134,7 @@ class GameMaster(private val userId: Long) {
             State.power -> power += firstQuantity * increase
 
             State.skill -> {
+                addFury()
                 power -= firstQuantity
                 actionCard?.countSkill = actionCard?.countSkill?.plus(1) ?: 0
                 if (actionCard?.statuses?.keys?.contains(Status.Sophistication) == true) {
@@ -138,6 +147,7 @@ class GameMaster(private val userId: Long) {
             }
 
             State.ultra -> {
+                addFury()
                 power -= firstQuantity
                 actionCard?.countSkill = actionCard?.let { it.countSkill.minus(it.costUltra) } ?: 0
                 if (actionCard?.statuses?.keys?.contains(Status.Sophistication) == true) {
@@ -195,7 +205,7 @@ class GameMaster(private val userId: Long) {
         endedHelpCard.forEach { (status, _) ->
             endedHelpCard[status]?.minus(1)?.let { value -> endedHelpCard[status] = value }
         }
-        helpCardMessage.filter { it.key !in actualHelpCard.keys}.forEach { helpCardMessage.remove(it.key) }
+        helpCardMessage.filter { it.key !in actualHelpCard.keys }.forEach { helpCardMessage.remove(it.key) }
 
         actualHelpCard.filter { it.value == 0 }.forEach {
             if (it.key.delay != 0) endedHelpCard[it.key] = it.key.delay
@@ -239,6 +249,7 @@ class GameMaster(private val userId: Long) {
         notes = listOf()
         allOrNothingValue = -1
         perfectionismValue = 0
+        countFury = 0
         tempStatus = null
         statusMessage.clear()
         helpCardMessage.clear()
@@ -253,10 +264,7 @@ class GameMaster(private val userId: Long) {
                     it.cost <= power
         }.chunked(2)
 
-    fun getReplyButtonsInfo() =
-        (if (action == State.skill)
-            cards.filter { it.canUseSkill }
-        else cards).filter { it.hp > 0 }.map { "Персонаж ${it.index}" }
+    fun getReplyButtonsInfo() = cards.filter { it.hp > 0 }.map { "Персонаж ${it.index}" }
 
     fun getDiedCards() = cards.filter { it.hp <= 0 }.map { "Персонаж ${it.index}" }
 
@@ -266,7 +274,12 @@ class GameMaster(private val userId: Long) {
         message {
             bold { "Персонаж ${it.index}" } - ": ${it.hp} жизней${Emoji.RedHeart}\n" +
                     "Количество навыков: ${it.countSkill}\n" + "Щит${Emoji.Shield}: ${it.shield}\n" +
-                    "Статусы: " + (if (it.statuses.isNotEmpty()) "[\n${it.statuses.keys.joinToString("\n") { "  " + it.title + " - " + (if (!it.inTeam && it == Status.Tox) "каждый ход прибавляется 1 очко навыка" else it.description) }}\n]" else "[]")
+                    "Статусы: " + (
+                    if (it.statusMessages.isNotEmpty())
+                        "[\n${it.statusMessages.joinToString("\n") { it }}\n]"
+                    else
+                        "[]"
+                    )
         }
     }
 
@@ -307,14 +320,13 @@ class GameMaster(private val userId: Long) {
     fun addDebt() {
         power--
         repeat(2) {
-            if (debts.size > 4)
-                debts.removeAt(debts.lastIndex)
+            deleteNonPopularDebt()
             debts.add(0, allStudentDebts.random())
         }
     }
 
     fun setNotes(isIdeal: Boolean = false) {
-        notes = if (isIdeal) List(allNotes.size) { allNotes.first() } else allNotes.toList()
+        notes = if (isIdeal) allNotes.toList() else List(allNotes.size) { allNotes.random() }
     }
 
     fun getDistinctNotesCount() =
@@ -322,6 +334,18 @@ class GameMaster(private val userId: Long) {
 
     fun getCountMostPopularDebts() =
         debts.associateWith { debts.count { debt -> debt == it } }.toList().maxOf { it.second }
+
+    fun getMostPopularDebts() =
+        debts.associateWith { debts.count { debt -> debt == it } }.toList().maxBy { it.second }.first
+
+    fun getSelectedDebtInList(selectedDebt: String) = debts.count { it == selectedDebt }
+
+    fun deleteNonPopularDebt() {
+        debts.indexOfLast { it != getMostPopularDebts() }.let {
+            if (it != -1)
+                debts.removeAt(it)
+        }
+    }
 
     fun isEndDebts() = getCountMostPopularDebts() == 4
 

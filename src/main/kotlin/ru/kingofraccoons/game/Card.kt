@@ -36,6 +36,7 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
             field = min(costUltra, value)
         }
     val statuses = mutableMapOf<Status, Int>()
+    val statusMessages = mutableListOf<String>()
     private val endedStatuses = mutableMapOf<Status, Int>()
 
     override fun toString(): String {
@@ -44,6 +45,7 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
     }
 
     fun executeStatus() {
+        statusMessages.clear()
         canUseSkill = true
         statuses.forEach { (it, _) ->
             when (it) {
@@ -60,6 +62,10 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
                 else -> {}
             }
             statuses[it]?.minus(1)?.let { value -> statuses[it] = value }
+            statusMessages.add(
+                it.title + " - " +
+                        (if (!it.inTeam && it == Status.Tox) "каждый ход прибавляется 1 очко навыка" else it.description)
+            )
         }
         endedStatuses.forEach { (status, _) ->
             endedStatuses[status]?.minus(1)?.let { value -> endedStatuses[status] = value }

@@ -93,7 +93,8 @@ enum class Status(
         "активный персонаж в конце раунда получает 1 единицу навыка " +
                 "(если навыков максимальное количество, то персонаж с наименьшим количеством единиц навыков)",
         shown = false
-    )
+    ),
+    Fury(StatusName.Fury, "Ррррр, я опасен")
 }
 
 object StatusName {
@@ -115,4 +116,5 @@ object StatusName {
     const val Provocateur = "Провокатор"
     const val FashionableVerdict = "Модный приговор"
     const val ProperNutrition = "Правильное питание"
+    const val Fury = "Ярость"
 }

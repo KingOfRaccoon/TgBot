@@ -4,6 +4,7 @@ import eu.vendeli.tgbot.TelegramBot
 import eu.vendeli.tgbot.annotations.CommandHandler
 import eu.vendeli.tgbot.annotations.CommonHandler
 import eu.vendeli.tgbot.annotations.InputHandler
+import eu.vendeli.tgbot.api.game
 import eu.vendeli.tgbot.api.message.SendMessageAction
 import eu.vendeli.tgbot.api.message.message
 import eu.vendeli.tgbot.types.User
@@ -129,36 +130,29 @@ class StartController {
     )
     suspend fun onePersonStatusState(value: ProcessedUpdate, user: User, bot: TelegramBot) {
         val status = Status.entries.toTypedArray().find { it.title == value.text }
-        if (status != null)
-            getGameMaster(user.id).setStatus(status)
-        message { "Выберите персонажа" }.replyKeyboardMarkup {
-            getGameMaster(user.id).getReplyButtonsInfo().forEach {
-                +it
-                br()
-            }
-            options {
-                resizeKeyboard = true
-            }
-        }.send(user, bot)
+        val gameMaster = getGameMaster(user.id)
+        if (status != null) gameMaster.setStatus(status)
+        selectPerson(gameMaster, user, bot)
     }
 
     @CommandHandler.CallbackQuery([StatusName.NineLife])
     suspend fun nineLifeState(value: ProcessedUpdate, user: User, bot: TelegramBot) {
         val status = Status.entries.toTypedArray().find { it.title == value.text }
-        if (status != null) getGameMaster(user.id).setStatus(status)
-
-        message { "Выберите персонажа" }.replyKeyboardMarkup {
-            getGameMaster(user.id).getDiedCards().forEach {
-                +it
-                br()
-            }
-            options {
-                resizeKeyboard = true
-            }
-        }.send(user, bot)
+        val gameMaster = getGameMaster(user.id)
+        if (status != null) gameMaster.setStatus(status)
+        selectPerson(gameMaster, user, bot)
     }
 
-    @CommandHandler.CallbackQuery([StatusName.Barrier, StatusName.RedHeadGirlfriend, StatusName.Deadline, StatusName.Faith, StatusName.Perfectionism])
+    @CommandHandler.CallbackQuery(
+        [
+            StatusName.Barrier,
+            StatusName.RedHeadGirlfriend,
+            StatusName.Deadline,
+            StatusName.Faith,
+            StatusName.Perfectionism,
+            StatusName.Fury
+        ]
+    )
     suspend fun allTeamStatusState(value: ProcessedUpdate, user: User, bot: TelegramBot) {
         val gameMaster = getGameMaster(user.id)
         val status = Status.entries.toTypedArray().find { it.title == value.text }
@@ -202,15 +196,7 @@ class StartController {
         val action = value.text
         gameMaster.setAction(action)
         messageForSelectedAction(action, user, bot)
-        message { "Выберите персонажа" }.replyKeyboardMarkup {
-            getGameMaster(user.id).getReplyButtonsInfo().forEach {
-                +it
-                br()
-            }
-            options {
-                resizeKeyboard = true
-            }
-        }.send(user, bot)
+        selectPerson(gameMaster, user, bot)
     }
 
     @CommandHandler.CallbackQuery(["Тест на идеал"])
@@ -220,8 +206,10 @@ class StartController {
             if (gameMaster.perfectionismValue == 0)
                 message { "Проверки закончены, статус " - bold { "Перфекционизм" } - " снят" }.send(user, bot)
             else
-                message { "Проверка пройдена. Проверка прошла " -
-                        bold { gameMaster.perfectionismValue.toString() } - " раз" }.send(
+                message {
+                    "Проверка пройдена. Проверка прошла " -
+                            bold { gameMaster.perfectionismValue.toString() } - " раз"
+                }.send(
                     user,
                     bot
                 )
@@ -272,18 +260,19 @@ class StartController {
 
     @CommandHandler.CallbackQuery([State.selectPerson])
     suspend fun selectPersonState(user: User, bot: TelegramBot) {
-        message { "Выберите персонажа" }.replyKeyboardMarkup {
-            getGameMaster(user.id).getReplyButtonsInfo().forEach {
-                +it
-                br()
-            }
-            options {
-                resizeKeyboard = true
-            }
-        }.send(user, bot)
+        selectPerson(getGameMaster(user.id), user, bot)
     }
 
-    @CommandHandler.CallbackQuery([State.increasePower, State.decreasePower, State.increaseHP, State.decreaseHP, State.increaseShield, State.decreaseShield])
+    @CommandHandler.CallbackQuery(
+        [
+            State.increasePower,
+            State.decreasePower,
+            State.increaseHP,
+            State.decreaseHP,
+            State.increaseShield,
+            State.decreaseShield
+        ]
+    )
     suspend fun setQuantityInHpAndOtherState(value: ProcessedUpdate, user: User, bot: TelegramBot) {
         println(value.text)
         getGameMaster(user.id).setIncrease(if (value.text.contains(State.decrease)) -1 else 1)
@@ -318,33 +307,36 @@ class StartController {
                 }
 
                 State.skill -> {
-                    messageForSelectedAction(action, user, bot)
-                    message { "Сколько энергии стоит навык?" }.replyKeyboardRemove().inlineKeyboardMarkup {
-                        enterQuantityInlineKeyboardMarkup(0, gameMaster.getMaxNumberAction(false))
-                    }.send(user, bot)
+                    if (gameMaster.actionCardContainsFashionableVerdictStatus()) {
+                        messageForSelectedAction(action, user, bot)
+                        message { "Сколько энергии стоит навык?" }.replyKeyboardRemove().inlineKeyboardMarkup {
+                            enterQuantityInlineKeyboardMarkup(0, gameMaster.getMaxNumberAction(false))
+                        }.send(user, bot)
+                    } else {
+                        message { "Персонаж, который был сейчас активен, не способен использовать навык" }
+                            .send(user, bot)
+                        startRoundMessages(user, bot)
+                    }
                 }
 
                 State.ultra -> {
-                    messageForSelectedAction(action, user, bot)
-                    message { "Сколько энергии стоит ульта?" }.replyKeyboardRemove().inlineKeyboardMarkup {
-                        enterQuantityInlineKeyboardMarkup(1, gameMaster.getMaxNumberAction(false)) {
-                            "${State.ultra}_$it"
-                        }
-                    }.send(user, bot)
+                    if (gameMaster.actionCardContainsFashionableVerdictStatus()) {
+                        messageForSelectedAction(action, user, bot)
+                        message { "Сколько энергии стоит ульта?" }.replyKeyboardRemove().inlineKeyboardMarkup {
+                            enterQuantityInlineKeyboardMarkup(1, gameMaster.getMaxNumberAction(false)) {
+                                "${State.ultra}_$it"
+                            }
+                        }.send(user, bot)
+                    } else {
+                        message { "Персонаж, который был сейчас активен, не способен использовать навык" }
+                        startRoundMessages(user, bot)
+                    }
                 }
 
                 // status
                 else -> {
                     messageForSelectedAction(action, user, bot)
-                    message { "Выберите персонажа" }.replyKeyboardMarkup {
-                        gameMaster.getReplyButtonsInfo().forEach {
-                            +it
-                            br()
-                        }
-                        options {
-                            resizeKeyboard = true
-                        }
-                    }.send(user, bot)
+                    selectPerson(gameMaster, user, bot)
                 }
             }
         } else {
@@ -476,6 +468,7 @@ class StartController {
                             gameMaster.addStatusInCard(Status.NineLife)
                             getUsedNineLife(user.id, true)
                             message { "На персонажа $index наложен статус " - bold { "Девятая жизнь" } }.send(user, bot)
+                            gameMaster.executeAction()
                             message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
                             startRoundMessages(user, bot)
                         }
@@ -600,15 +593,7 @@ class StartController {
         val value =
             "${StatusName.AllOrNothing}_([1-5])".toRegex().find(update.text)?.groupValues?.get(1)?.toIntOrNull() ?: 1
         gameMaster.updateAllOrNothingValue(value)
-        message { "Выберите персонажа" }.replyKeyboardMarkup {
-            gameMaster.getReplyButtonsInfoWithoutAction().forEach {
-                +it
-                br()
-            }
-            options {
-                resizeKeyboard = true
-            }
-        }.send(user, bot)
+        selectPerson(gameMaster, user, bot, false)
     }
 
     @CommandHandler.CallbackQuery(["МиМ ГУАП"])
@@ -616,15 +601,7 @@ class StartController {
         val gameMaster = getGameMaster(user.id)
         gameMaster.addHelpCard(update.text)
         message { "Разыграна карта подмоги: " - bold { update.text } }.send(user, bot)
-        message { "Выберите персонажа" }.replyKeyboardMarkup {
-            gameMaster.getReplyButtonsInfo().forEach {
-                +it
-                br()
-            }
-            options {
-                resizeKeyboard = true
-            }
-        }.send(user, bot)
+        selectPerson(gameMaster, user, bot)
     }
 
     @CommandHandler.CallbackQuery(["СВП ГУАП", "ТШ ГУАП", "Мансарда"])
@@ -659,6 +636,10 @@ class StartController {
         if (gameMaster.getCanUltra()) {
             getGameMaster(user.id).executeAction()
             message { "Выполнена ульта" }.replyKeyboardRemove().send(user, bot)
+            gameMaster.getFuryCount().let {
+                if (it.isNotEmpty())
+                    message { it }.send(user, bot)
+            }
         } else {
             message { "Не хватает использованных навыков для использования ульты" }.replyKeyboardRemove()
                 .send(user, bot)
@@ -669,14 +650,20 @@ class StartController {
 
     @CommandHandler.CallbackQuery(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"])
     suspend fun processQuantityState(update: ProcessedUpdate, user: User, bot: TelegramBot) {
+        val gameMaster = getGameMaster(user.id)
         (update.text.toIntOrNull() ?: 1).let {
             println("quantity: $it")
-            if (getGameMaster(user.id).getAction() == State.ultra)
-                getGameMaster(user.id).setSecondQuantity(it)
+            if (gameMaster.getAction() == State.ultra)
+                gameMaster.setSecondQuantity(it)
             else
-                getGameMaster(user.id).setFirstQuantity(it)
+                gameMaster.setFirstQuantity(it)
         }
-        getGameMaster(user.id).executeAction()
+        gameMaster.executeAction()
+        if (gameMaster.getAction() == State.skill)
+            gameMaster.getFuryCount().let {
+                if (it.isNotEmpty())
+                    message { it }.send(user, bot)
+            }
         message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
         startRoundMessages(user, bot)
     }
@@ -691,8 +678,6 @@ class StartController {
     private suspend fun startRoundMessages(user: User, bot: TelegramBot) {
         val gameMaster = getGameMaster(user.id)
         gameMaster.clearQuantities()
-        println("gameMaster.helpCardMessage")
-        println(gameMaster.helpCardMessage)
         gameMaster.helpCardMessage.values.let {
             if (it.isNotEmpty()) message { it.joinToString("\n") { it } }.send(
                 user,
@@ -733,6 +718,18 @@ class StartController {
                 "Новый раунд" callback State.newRound
                 "Закончить игру" callback State.endGame
             }.send(user, bot)
+    }
+
+    private suspend fun selectPerson(gameMaster: GameMaster, user: User, bot: TelegramBot, withAction: Boolean = true) {
+        message { "Выберите персонажа" }.replyKeyboardMarkup {
+            (if (withAction) gameMaster.getReplyButtonsInfo() else gameMaster.getReplyButtonsInfoWithoutAction()).forEach {
+                +it
+                br()
+            }
+            options {
+                resizeKeyboard = true
+            }
+        }.send(user, bot)
     }
 
     private fun InlineKeyboardMarkupBuilder.enterQuantityInlineKeyboardMarkup(
