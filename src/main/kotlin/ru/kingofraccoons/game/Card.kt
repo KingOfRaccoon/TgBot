@@ -43,6 +43,12 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
         return "Персонаж $index: $hp жизней\n" +
                 "Статусы: [\n${statuses.keys.joinToString { "  " + it.title + " - " + it.description }}\n]"
     }
+    fun executeNineLife() {
+        if (statuses.keys.contains(Status.NineLife)){
+            changeHP((2..6).random())
+            statuses.remove(Status.NineLife)
+        }
+    }
 
     fun executeStatus() {
         statusMessages.clear()

@@ -140,7 +140,7 @@ class StartController {
         val status = Status.entries.toTypedArray().find { it.title == value.text }
         val gameMaster = getGameMaster(user.id)
         if (status != null) gameMaster.setStatus(status)
-        selectPerson(gameMaster, user, bot)
+        selectPerson(gameMaster, user, bot, GameMaster::getDiedCards)
     }
 
     @CommandHandler.CallbackQuery(
@@ -468,7 +468,7 @@ class StartController {
                             gameMaster.addStatusInCard(Status.NineLife)
                             getUsedNineLife(user.id, true)
                             message { "На персонажа $index наложен статус " - bold { "Девятая жизнь" } }.send(user, bot)
-                            gameMaster.executeAction()
+                            gameMaster.executeNineLifeInActionCard()
                             message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
                             startRoundMessages(user, bot)
                         }
@@ -593,7 +593,7 @@ class StartController {
         val value =
             "${StatusName.AllOrNothing}_([1-5])".toRegex().find(update.text)?.groupValues?.get(1)?.toIntOrNull() ?: 1
         gameMaster.updateAllOrNothingValue(value)
-        selectPerson(gameMaster, user, bot, false)
+        selectPerson(gameMaster, user, bot, GameMaster::getReplyButtonsInfoWithoutAction)
     }
 
     @CommandHandler.CallbackQuery(["МиМ ГУАП"])
@@ -720,9 +720,14 @@ class StartController {
             }.send(user, bot)
     }
 
-    private suspend fun selectPerson(gameMaster: GameMaster, user: User, bot: TelegramBot, withAction: Boolean = true) {
+    private suspend fun selectPerson(
+        gameMaster: GameMaster,
+        user: User,
+        bot: TelegramBot,
+        getCards: GameMaster.() -> List<String> = GameMaster::getReplyButtonsInfo
+    ) {
         message { "Выберите персонажа" }.replyKeyboardMarkup {
-            (if (withAction) gameMaster.getReplyButtonsInfo() else gameMaster.getReplyButtonsInfoWithoutAction()).forEach {
+            gameMaster.getCards().forEach {
                 +it
                 br()
             }

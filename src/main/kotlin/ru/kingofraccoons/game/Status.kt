@@ -94,7 +94,7 @@ enum class Status(
                 "(если навыков максимальное количество, то персонаж с наименьшим количеством единиц навыков)",
         shown = false
     ),
-    Fury(StatusName.Fury, "Ррррр, я опасен")
+    Fury(StatusName.Fury, "Ррррр, я опасен", countRounds = Int.MAX_VALUE),
 }
 
 object StatusName {

@@ -40,8 +40,7 @@ class GameMaster(private val userId: Long) {
 
     fun getFuryCount() = if (cards.all { it.statuses.containsKey(Status.Fury) }) "Количество ярости: $countFury" else ""
 
-    fun actionCardContainsFashionableVerdictStatus() =
-        actionCard?.statuses?.containsKey(Status.FashionableVerdict) == true
+    fun actionCardContainsFashionableVerdictStatus() = actionCard?.canUseSkill == true
 
     fun containsMimHelpCard() = actualHelpCard.contains(HelpCard.MissAndMister)
 
@@ -122,6 +121,8 @@ class GameMaster(private val userId: Long) {
     }
 
     fun getCanUltra() = actionCard?.let { it.costUltra <= it.countSkill } == true
+
+    fun executeNineLifeInActionCard() = actionCard?.executeNineLife()
 
     fun executeAction() {
         when (action) {
@@ -326,7 +327,7 @@ class GameMaster(private val userId: Long) {
     }
 
     fun setNotes(isIdeal: Boolean = false) {
-        notes = if (isIdeal) allNotes.toList() else List(allNotes.size) { allNotes.random() }
+        notes = if (isIdeal) List(allNotes.size) { allNotes.first() } else List(allNotes.size) { allNotes.random() }
     }
 
     fun getDistinctNotesCount() =
@@ -341,10 +342,11 @@ class GameMaster(private val userId: Long) {
     fun getSelectedDebtInList(selectedDebt: String) = debts.count { it == selectedDebt }
 
     fun deleteNonPopularDebt() {
-        debts.indexOfLast { it != getMostPopularDebts() }.let {
-            if (it != -1)
-                debts.removeAt(it)
-        }
+        if (debts.size > 3)
+            debts.indexOfLast { it != getMostPopularDebts() }.let {
+                if (it != -1)
+                    debts.removeAt(it)
+            }
     }
 
     fun isEndDebts() = getCountMostPopularDebts() == 4
