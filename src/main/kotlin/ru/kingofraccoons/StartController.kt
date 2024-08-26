@@ -4,7 +4,6 @@ import eu.vendeli.tgbot.TelegramBot
 import eu.vendeli.tgbot.annotations.CommandHandler
 import eu.vendeli.tgbot.annotations.CommonHandler
 import eu.vendeli.tgbot.annotations.InputHandler
-import eu.vendeli.tgbot.api.game
 import eu.vendeli.tgbot.api.message.SendMessageAction
 import eu.vendeli.tgbot.api.message.message
 import eu.vendeli.tgbot.types.User
@@ -307,30 +306,19 @@ class StartController {
                 }
 
                 State.skill -> {
-                    if (gameMaster.actionCardContainsFashionableVerdictStatus()) {
-                        messageForSelectedAction(action, user, bot)
-                        message { "Сколько энергии стоит навык?" }.replyKeyboardRemove().inlineKeyboardMarkup {
-                            enterQuantityInlineKeyboardMarkup(0, gameMaster.getMaxNumberAction(false))
-                        }.send(user, bot)
-                    } else {
-                        message { "Персонаж, который был сейчас активен, не способен использовать навык" }
-                            .send(user, bot)
-                        startRoundMessages(user, bot)
-                    }
+                    messageForSelectedAction(action, user, bot)
+                    message { "Сколько энергии стоит навык?" }.replyKeyboardRemove().inlineKeyboardMarkup {
+                        enterQuantityInlineKeyboardMarkup(0, gameMaster.getMaxNumberAction(false))
+                    }.send(user, bot)
                 }
 
                 State.ultra -> {
-                    if (gameMaster.actionCardContainsFashionableVerdictStatus()) {
-                        messageForSelectedAction(action, user, bot)
-                        message { "Сколько энергии стоит ульта?" }.replyKeyboardRemove().inlineKeyboardMarkup {
-                            enterQuantityInlineKeyboardMarkup(1, gameMaster.getMaxNumberAction(false)) {
-                                "${State.ultra}_$it"
-                            }
-                        }.send(user, bot)
-                    } else {
-                        message { "Персонаж, который был сейчас активен, не способен использовать навык" }
-                        startRoundMessages(user, bot)
-                    }
+                    messageForSelectedAction(action, user, bot)
+                    message { "Сколько энергии стоит ульта?" }.replyKeyboardRemove().inlineKeyboardMarkup {
+                        enterQuantityInlineKeyboardMarkup(0, gameMaster.getMaxNumberAction(false)) {
+                            "${State.ultra}_$it"
+                        }
+                    }.send(user, bot)
                 }
 
                 // status
@@ -438,7 +426,7 @@ class StartController {
                         }
 
                         StatusName.FashionableVerdict -> {
-                            gameMaster.addStatusInCard(Status.FashionableVerdict)
+                            gameMaster.fashionableVerdictIndex = index-1
                             message { "На персонажа $index наложен статус " - bold { "Модный приговор" } }.send(
                                 user,
                                 bot
@@ -547,6 +535,7 @@ class StartController {
         }.replyKeyboardRemove()
             .send(user, bot)
         gameMaster.decreaseHP(gameMaster.getCountMostPopularDebts())
+        gameMaster.debts.clear()
 
         message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
         startRoundMessages(user, bot)
@@ -606,9 +595,10 @@ class StartController {
 
     @CommandHandler.CallbackQuery(["СВП ГУАП", "ТШ ГУАП", "Мансарда"])
     suspend fun helpCardState(update: ProcessedUpdate, user: User, bot: TelegramBot) {
-        getGameMaster(user.id).addHelpCard(update.text)
+        val gameMaster = getGameMaster(user.id)
+        gameMaster.addHelpCard(update.text)
         message { "Разыграна карта подмоги: " - bold { update.text } }.send(user, bot)
-        getGameMaster(user.id).executeHelpCard()
+        gameMaster.executeHelpCard()
         message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
         startRoundMessages(user, bot)
     }
@@ -634,7 +624,7 @@ class StartController {
         val gameMaster = getGameMaster(user.id)
         gameMaster.setFirstQuantity(update.text.split("_").lastOrNull()?.toIntOrNull() ?: 1)
         if (gameMaster.getCanUltra()) {
-            getGameMaster(user.id).executeAction()
+            gameMaster.executeAction()
             message { "Выполнена ульта" }.replyKeyboardRemove().send(user, bot)
             gameMaster.getFuryCount().let {
                 if (it.isNotEmpty())

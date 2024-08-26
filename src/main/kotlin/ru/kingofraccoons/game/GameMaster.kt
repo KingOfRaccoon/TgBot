@@ -25,6 +25,14 @@ class GameMaster(private val userId: Long) {
     var tempStatus: Status? = null
     var allOrNothingValue = -1
     var perfectionismValue = 0
+    var fashionableVerdictIndex = -1
+    var fashionableVerdictDelay = 0
+        set(value) {
+            field = if (value == -1)
+                Status.FashionableVerdict.delay
+            else
+                value
+        }
     val debts = mutableListOf<String>()
     var notes = listOf<String>()
 
@@ -39,9 +47,6 @@ class GameMaster(private val userId: Long) {
     }
 
     fun getFuryCount() = if (cards.all { it.statuses.containsKey(Status.Fury) }) "Количество ярости: $countFury" else ""
-
-    fun actionCardContainsFashionableVerdictStatus() = actionCard?.canUseSkill == true
-
     fun containsMimHelpCard() = actualHelpCard.contains(HelpCard.MissAndMister)
 
     fun updateAllOrNothingValue(value: Int) {
@@ -271,7 +276,7 @@ class GameMaster(private val userId: Long) {
 
     fun getReplyButtonsInfoWithoutAction() = cards.filter { it != actionCard }.map { "Персонаж ${it.index}" }
 
-    fun printInfo() = cards.map {
+    fun printInfo() = cards.mapIndexed { index, it ->
         message {
             bold { "Персонаж ${it.index}" } - ": ${it.hp} жизней${Emoji.RedHeart}\n" +
                     "Количество навыков: ${it.countSkill}\n" + "Щит${Emoji.Shield}: ${it.shield}\n" +
@@ -280,7 +285,8 @@ class GameMaster(private val userId: Long) {
                         "[\n${it.statusMessages.joinToString("\n") { it }}\n]"
                     else
                         "[]"
-                    )
+                    ) + (if (fashionableVerdictIndex == index && fashionableVerdictDelay == 0)
+                        "\nДанный персонаж не может использовать навык" else "")
         }
     }
 
@@ -302,6 +308,7 @@ class GameMaster(private val userId: Long) {
 
     fun startNewRound() {
 //        executeAction()
+        fashionableVerdictDelay--
         cards.forEach { it.executeStatus() }
         tempStatus = null
         allOrNothingValue = -1

@@ -11,7 +11,6 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
         }
 
     var costUltra = 0
-    var canUseSkill = true
 
     fun changeHP(changeValue: Int) {
         if (statuses.containsKey(Status.Barrier) && changeValue < 0) {
@@ -52,7 +51,6 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
 
     fun executeStatus() {
         statusMessages.clear()
-        canUseSkill = true
         statuses.forEach { (it, _) ->
             when (it) {
                 Status.RedHeadGirlfriend -> changeHP(it.quantity)
@@ -60,9 +58,6 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
                 Status.Deadline -> changeHP(it.quantity)
                 Status.Vibe -> shield += it.quantity
                 Status.Tox -> if (it.inTeam) changeHP(it.quantity) else countSkill++
-                Status.FashionableVerdict -> {
-                    canUseSkill = false
-                }
 
                 Status.NineLife -> changeHP((2..6).random())
                 else -> {}
