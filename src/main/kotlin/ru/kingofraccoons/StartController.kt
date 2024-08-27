@@ -4,9 +4,14 @@ import eu.vendeli.tgbot.TelegramBot
 import eu.vendeli.tgbot.annotations.CommandHandler
 import eu.vendeli.tgbot.annotations.CommonHandler
 import eu.vendeli.tgbot.annotations.InputHandler
+import eu.vendeli.tgbot.api.botactions.setMyName
+import eu.vendeli.tgbot.api.media.document
+import eu.vendeli.tgbot.api.media.sendDocument
 import eu.vendeli.tgbot.api.message.SendMessageAction
 import eu.vendeli.tgbot.api.message.message
 import eu.vendeli.tgbot.types.User
+import eu.vendeli.tgbot.types.internal.ImplicitFile
+import eu.vendeli.tgbot.types.internal.InputFile
 import eu.vendeli.tgbot.types.internal.MessageUpdate
 import eu.vendeli.tgbot.types.internal.ProcessedUpdate
 import eu.vendeli.tgbot.utils.builders.InlineKeyboardMarkupBuilder
@@ -20,17 +25,21 @@ import ru.kingofraccoons.game.GameMaster
 import ru.kingofraccoons.game.Status
 import ru.kingofraccoons.game.StatusName
 import ru.kingofraccoons.navigation.State
+import java.io.File
 
 class StartController {
     @CommandHandler([State.start])
     suspend fun startState(user: User, bot: TelegramBot) {
         getGameMaster(user.id).setDefaultValues()
-        message { "Привет, ${user.firstName}" }.replyKeyboardMarkup {
-            +State.startGame
-            options {
-                resizeKeyboard = true
-            }
-        }.send(user, bot)
+
+
+        message { "Привет, ${user.firstName}!\nВот книга игрока, в который ты найдёшь всю нужную информацию, приятной игры!" }.send(user, bot)
+        document(InputFile(File("src/main/resources/files/Книга игрока.pdf").readBytes(), "Книга игрока.pdf")).replyKeyboardMarkup {
+                +State.startGame
+                options {
+                    resizeKeyboard = true
+                }
+            }.send(user, bot)
     }
 
     @CommandHandler.CallbackQuery([State.endGame])
@@ -426,7 +435,7 @@ class StartController {
                         }
 
                         StatusName.FashionableVerdict -> {
-                            gameMaster.fashionableVerdictIndex = index-1
+                            gameMaster.fashionableVerdictIndex = index - 1
                             message { "На персонажа $index наложен статус " - bold { "Модный приговор" } }.send(
                                 user,
                                 bot
