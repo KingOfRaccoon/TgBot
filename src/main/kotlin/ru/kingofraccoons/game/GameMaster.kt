@@ -25,7 +25,7 @@ class GameMaster(private val userId: Long) {
     var tempStatus: Status? = null
     var allOrNothingValue = -1
     var perfectionismValue = 0
-    var fashionableVerdictIndex = -1
+    var fashionableVerdictContains = false
     var fashionableVerdictDelay = 0
         set(value) {
             field = if (value == -1)
@@ -285,8 +285,7 @@ class GameMaster(private val userId: Long) {
                         "[\n${it.statusMessages.joinToString("\n") { it }}\n]"
                     else
                         "[]"
-                    ) + (if (fashionableVerdictIndex == index && fashionableVerdictDelay == 0)
-                        "\nДанный персонаж не может использовать навык" else "")
+                    )
         }
     }
 

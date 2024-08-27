@@ -99,7 +99,7 @@ enum class Status(
 
 object StatusName {
     const val Barrier = "Барьер"
-    const val RedHeadGirlfriend = "Рыжеволосая подружка"
+    const val RedHeadGirlfriend = "Рыжая подружка"
     const val NutsWithMilk = "Орешки со сгущенкой"
     const val Deadline = "Дедлайн"
     const val Faith = "Вера"

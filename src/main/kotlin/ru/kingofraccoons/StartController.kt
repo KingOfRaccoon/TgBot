@@ -4,13 +4,10 @@ import eu.vendeli.tgbot.TelegramBot
 import eu.vendeli.tgbot.annotations.CommandHandler
 import eu.vendeli.tgbot.annotations.CommonHandler
 import eu.vendeli.tgbot.annotations.InputHandler
-import eu.vendeli.tgbot.api.botactions.setMyName
 import eu.vendeli.tgbot.api.media.document
-import eu.vendeli.tgbot.api.media.sendDocument
 import eu.vendeli.tgbot.api.message.SendMessageAction
 import eu.vendeli.tgbot.api.message.message
 import eu.vendeli.tgbot.types.User
-import eu.vendeli.tgbot.types.internal.ImplicitFile
 import eu.vendeli.tgbot.types.internal.InputFile
 import eu.vendeli.tgbot.types.internal.MessageUpdate
 import eu.vendeli.tgbot.types.internal.ProcessedUpdate
@@ -31,10 +28,11 @@ class StartController {
     @CommandHandler([State.start])
     suspend fun startState(user: User, bot: TelegramBot) {
         getGameMaster(user.id).setDefaultValues()
-
-
-        message { "Привет, ${user.firstName}!\nВот книга игрока, в который ты найдёшь всю нужную информацию, приятной игры!" }.send(user, bot)
-        document(InputFile(File("src/main/resources/files/Книга игрока.pdf").readBytes(), "Книга игрока.pdf")).replyKeyboardMarkup {
+        message { "Привет, ${user.firstName}!\n" +
+                "Вот книга игрока, в который ты найдёшь всю нужную информацию, приятной игры!" }.send(user, bot)
+        document(
+            InputFile(File("src/main/resources/files/Книга игрока.pdf").readBytes(),
+            "Книга игрока.pdf")).replyKeyboardMarkup {
                 +State.startGame
                 options {
                     resizeKeyboard = true
@@ -132,7 +130,6 @@ class StartController {
             StatusName.MusicLottery,
             StatusName.Sophistication,
             StatusName.Provocateur,
-            StatusName.FashionableVerdict,
             StatusName.ProperNutrition
         ]
     )
@@ -158,13 +155,16 @@ class StartController {
             StatusName.Deadline,
             StatusName.Faith,
             StatusName.Perfectionism,
-            StatusName.Fury
+            StatusName.Fury,
+            StatusName.FashionableVerdict
         ]
     )
     suspend fun allTeamStatusState(value: ProcessedUpdate, user: User, bot: TelegramBot) {
         val gameMaster = getGameMaster(user.id)
         val status = Status.entries.toTypedArray().find { it.title == value.text }
         if (status != null) gameMaster.addStatusInAllCards(status)
+        if (value.text == StatusName.FashionableVerdict)
+            gameMaster.fashionableVerdictContains = true
         message { "Ко всей команде применен статус " - bold { status?.title.orEmpty() } }.send(user, bot)
         message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
         startRoundMessages(user, bot)
@@ -434,15 +434,15 @@ class StartController {
                             startRoundMessages(user, bot)
                         }
 
-                        StatusName.FashionableVerdict -> {
-                            gameMaster.fashionableVerdictIndex = index - 1
-                            message { "На персонажа $index наложен статус " - bold { "Модный приговор" } }.send(
-                                user,
-                                bot
-                            )
-                            message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
-                            startRoundMessages(user, bot)
-                        }
+//                        StatusName.FashionableVerdict -> {
+//                            gameMaster.fashionableVerdictContains = true
+//                            message { "На персонажа $index наложен статус " - bold { "Модный приговор" } }.send(
+//                                user,
+//                                bot
+//                            )
+//                            message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
+//                            startRoundMessages(user, bot)
+//                        }
 
                         StatusName.ProperNutrition -> {
                             gameMaster.addStatusInCard(Status.ProperNutrition)
@@ -626,7 +626,7 @@ class StartController {
     }
 
     @CommandHandler.CallbackQuery(
-        [State.ultra + "_1", State.ultra + "_2", State.ultra + "_3",
+        [State.ultra + "_0", State.ultra + "_1", State.ultra + "_2", State.ultra + "_3",
             State.ultra + "_4", State.ultra + "_5", State.ultra + "_6", State.ultra + "_7"]
     )
     suspend fun enterQuantityUltra(update: ProcessedUpdate, user: User, bot: TelegramBot) {
@@ -684,6 +684,8 @@ class StartController {
             )
         }
         message { "Энергия${Emoji.Lightning}: ${gameMaster.power}" }.send(user, bot)
+        if (gameMaster.fashionableVerdictContains && gameMaster.fashionableVerdictDelay == 0)
+            message { "Данный персонаж не может использовать навык" }.send(user, bot)
         gameMaster.printInfo().forEachIndexed { i, it ->
             if (i == 0)
                 it.replyKeyboardRemove().send(user, bot)
