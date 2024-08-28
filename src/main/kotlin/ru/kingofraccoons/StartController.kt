@@ -31,8 +31,11 @@ class StartController {
         message { "Привет, ${user.firstName}!\n" +
                 "Вот книга игрока, в который ты найдёшь всю нужную информацию, приятной игры!" }.send(user, bot)
         document(
-            InputFile(File("src/main/resources/files/Книга игрока.pdf").readBytes(),
-            "Книга игрока.pdf")).replyKeyboardMarkup {
+            InputFile(
+                File("src/main/resources/files/Kniga_igroka-3.pdf").readBytes(),
+                "Книга игрока.pdf"
+            )
+        ).replyKeyboardMarkup {
                 +State.startGame
                 options {
                     resizeKeyboard = true
