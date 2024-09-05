@@ -35,7 +35,7 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
             field = min(costUltra, value)
         }
     val statuses = mutableMapOf<Status, Int>()
-    val statusMessages = mutableListOf<String>()
+    val statusMessages = mutableSetOf<String>()
     private val endedStatuses = mutableMapOf<Status, Int>()
 
     override fun toString(): String {
@@ -46,6 +46,16 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
         if (statuses.keys.contains(Status.NineLife)){
             changeHP((2..6).random())
             statuses.remove(Status.NineLife)
+        }
+    }
+
+    fun executeStatusRedHeadGirlfriend() {
+        statuses[Status.RedHeadGirlfriend]?.let {
+            changeHP(Status.RedHeadGirlfriend.quantity)
+            statuses[Status.RedHeadGirlfriend]?.minus(1)?.let { value -> statuses[Status.RedHeadGirlfriend] = value }
+            statusMessages.add(
+                Status.RedHeadGirlfriend.title + " - " +  Status.RedHeadGirlfriend.description
+            )
         }
     }
 

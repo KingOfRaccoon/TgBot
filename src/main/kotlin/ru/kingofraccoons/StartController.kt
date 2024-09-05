@@ -165,9 +165,12 @@ class StartController {
     suspend fun allTeamStatusState(value: ProcessedUpdate, user: User, bot: TelegramBot) {
         val gameMaster = getGameMaster(user.id)
         val status = Status.entries.toTypedArray().find { it.title == value.text }
-        if (status != null) gameMaster.addStatusInAllCards(status)
         if (value.text == StatusName.FashionableVerdict)
             gameMaster.fashionableVerdictContains = true
+        else if (status != null)
+            gameMaster.addStatusInAllCards(status)
+        if (value.text == StatusName.RedHeadGirlfriend)
+            gameMaster.executeStatusRedHeadGirlfriend()
         message { "Ко всей команде применен статус " - bold { status?.title.orEmpty() } }.send(user, bot)
         message { "Следующий ход" }.replyKeyboardRemove().send(user, bot)
         startRoundMessages(user, bot)
@@ -688,7 +691,7 @@ class StartController {
         }
         message { "Энергия${Emoji.Lightning}: ${gameMaster.power}" }.send(user, bot)
         if (gameMaster.fashionableVerdictContains && gameMaster.fashionableVerdictDelay == 0)
-            message { "Данный персонаж не может использовать навык" }.send(user, bot)
+            message { "Активный в момент активации статуса персонаж не может использовать ульту" }.send(user, bot)
         gameMaster.printInfo().forEachIndexed { i, it ->
             if (i == 0)
                 it.replyKeyboardRemove().send(user, bot)

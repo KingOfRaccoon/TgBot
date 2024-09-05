@@ -128,6 +128,7 @@ class GameMaster(private val userId: Long) {
     fun getCanUltra() = actionCard?.let { it.costUltra <= it.countSkill } == true
 
     fun executeNineLifeInActionCard() = actionCard?.executeNineLife()
+    fun executeStatusRedHeadGirlfriend() = cards.forEach { it.executeStatusRedHeadGirlfriend() }
 
     fun executeAction() {
         when (action) {
