@@ -51,8 +51,6 @@ data class Card(private val _hp: Int, var index: Int, val userId: Long, var shie
 
     fun executeStatusRedHeadGirlfriend() {
         statuses[Status.RedHeadGirlfriend]?.let {
-            changeHP(Status.RedHeadGirlfriend.quantity)
-            statuses[Status.RedHeadGirlfriend]?.minus(1)?.let { value -> statuses[Status.RedHeadGirlfriend] = value }
             statusMessages.add(
                 Status.RedHeadGirlfriend.title + " - " +  Status.RedHeadGirlfriend.description
             )

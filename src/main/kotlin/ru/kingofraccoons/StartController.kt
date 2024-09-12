@@ -691,7 +691,7 @@ class StartController {
         }
         message { "Энергия${Emoji.Lightning}: ${gameMaster.power}" }.send(user, bot)
         if (gameMaster.fashionableVerdictContains && gameMaster.fashionableVerdictDelay == 0)
-            message { "Активный в момент активации статуса персонаж не может использовать ульту" }.send(user, bot)
+            message { "Активный в момент активации статуса персонаж не может использовать навык" }.send(user, bot)
         gameMaster.printInfo().forEachIndexed { i, it ->
             if (i == 0)
                 it.replyKeyboardRemove().send(user, bot)
